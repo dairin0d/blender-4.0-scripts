@@ -1,0 +1,112 @@
+{
+    "data": {
+        "flips": [
+            "zoom_y"
+        ],
+        "keymaps": [
+            {
+                "alt": false,
+                "any": false,
+                "ctrl": false,
+                "input_settings": {
+                    "allowed_transitions": [
+                        "NONE:ORBIT",
+                        "FLY:FPS",
+                        "ORBIT:FPS",
+                        "ORBIT:FLY"
+                    ]
+                },
+                "insert_after": "view3d.manipulator",
+                "insert_before": "*",
+                "key_modifier": "NONE",
+                "keymaps": [
+                    "Sculpt",
+                    "Sculpt Curves",
+                    "Vertex Paint",
+                    "Particle",
+                    "Image Paint",
+                    "Weight Paint",
+                    "3D View",
+                    "Font"
+                ],
+                "oskey": false,
+                "shift": false,
+                "value_type": "LEFTMOUSE:PRESS"
+            },
+            {
+                "alt": true,
+                "any": false,
+                "ctrl": false,
+                "input_settings": {
+                    "allowed_transitions": [
+                        "NONE:PAN",
+                        "PAN:ZOOM"
+                    ]
+                },
+                "insert_after": "view3d.manipulator",
+                "insert_before": "*",
+                "key_modifier": "NONE",
+                "keymaps": [
+                    "Sculpt",
+                    "Sculpt Curves",
+                    "Vertex Paint",
+                    "Particle",
+                    "Image Paint",
+                    "Weight Paint",
+                    "3D View",
+                    "Font"
+                ],
+                "oskey": false,
+                "shift": false,
+                "value_type": "LEFTMOUSE:PRESS"
+            }
+        ],
+        "settings": {
+            "allowed_transitions": [
+                "ORBIT:PAN",
+                "FLY:FPS",
+                "ORBIT:ZOOM",
+                "NONE:PAN",
+                "NONE:DOLLY",
+                "ORBIT:FPS",
+                "NONE:FLY",
+                "ORBIT:DOLLY",
+                "NONE:ORBIT",
+                "PAN:ZOOM",
+                "PAN:DOLLY",
+                "ORBIT:FLY",
+                "NONE:FPS",
+                "NONE:ZOOM",
+                "DOLLY:ZOOM"
+            ],
+            "default_mode": "ORBIT",
+            "independent_modes": true,
+            "keys_cancel": "ESC:PRESS, RIGHTMOUSE:PRESS",
+            "keys_confirm": "RET:PRESS, NUMPAD_ENTER:PRESS, LEFTMOUSE:PRESS",
+            "keys_dolly": "",
+            "keys_fly": "<INVOKE_KEY>:DOUBLE_CLICK",
+            "keys_fps": "TAB:PRESS",
+            "keys_fps_acceleration": "shift:ON",
+            "keys_fps_back": "S:ON, DOWN_ARROW:ON",
+            "keys_fps_crouch": "ctrl:ON",
+            "keys_fps_down": "Q:ON, F:ON, PAGE_DOWN:ON",
+            "keys_fps_forward": "W:ON, UP_ARROW:ON",
+            "keys_fps_jump": "SPACE:ON",
+            "keys_fps_left": "A:ON, LEFT_ARROW:ON",
+            "keys_fps_right": "D:ON, RIGHT_ARROW:ON",
+            "keys_fps_slowdown": "ctrl:ON",
+            "keys_fps_teleport": "<INVOKE_KEY>:PRESS, V:PRESS",
+            "keys_fps_up": "E:ON, R:ON, PAGE_UP:ON",
+            "keys_orbit": "",
+            "keys_orbit_snap": "shift:ON",
+            "keys_pan": "alt:ON",
+            "keys_rotmode_switch": "SPACE:PRESS",
+            "keys_x_only": "X:PRESS",
+            "keys_y_only": "Y:PRESS",
+            "keys_zoom": "alt:OFF",
+            "origin_mode": "PREFS",
+            "ortho_unrotate": true,
+            "zbrush_mode": "ALWAYS"
+        }
+    }
+}

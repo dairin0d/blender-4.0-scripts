@@ -81,6 +81,10 @@ def divide():
     nan = math.nan
     isnan = math.isnan
     def divide(x, y):
+        # Make sure these are python floats, because e.g. numpy floats
+        # dont raise the ZeroDivisionError, and just print a warning
+        x = float(x)
+        y = float(y)
         try:
             return x / y
         except ZeroDivisionError:

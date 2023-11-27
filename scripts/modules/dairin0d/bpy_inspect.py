@@ -1485,85 +1485,6 @@ class BlEnums:
     object_modes = ObjectModeInfo.object_modes
     object_types = ObjectTypeInfo.object_types
     
-    object_infos = [
-        ObjectTypeInfo('MESH', "Mesh", {'RENDERABLE':True, 'MODIFIERS':True}, [
-            ('OBJECT', 'OBJECT', 'OBJECT', None, True),
-            ('EDIT_MESH', 'EDIT', 'EDIT', 'MESH', True),
-            ('SCULPT', 'SCULPT', 'SCULPT', None, False),
-            ('PAINT_WEIGHT', 'WEIGHT_PAINT', 'PAINT', 'WEIGHT', False),
-            ('PAINT_VERTEX', 'VERTEX_PAINT', 'PAINT', 'VERTEX', False),
-            ('PAINT_TEXTURE', 'TEXTURE_PAINT', 'PAINT', 'TEXTURE', False),
-            ('PARTICLE', 'PARTICLE_EDIT', 'EDIT', 'PARTICLE', False),
-        ], {'MESH':True, 'GPENCIL':True, 'POINTCLOUD':True}),
-        ObjectTypeInfo('CURVE', "Curve", {'RENDERABLE':True, 'MODIFIERS':True}, [
-            ('OBJECT', 'OBJECT', 'OBJECT', None, True),
-            ('EDIT_CURVE', 'EDIT', 'EDIT', 'CURVE', True),
-        ], {'MESH':True, 'GPENCIL':True, 'CURVES':True}),
-        ObjectTypeInfo('SURFACE', "SurfaceCurve", {'RENDERABLE':True, 'MODIFIERS':True}, [
-            ('OBJECT', 'OBJECT', 'OBJECT', None, True),
-            ('EDIT_SURFACE', 'EDIT', 'EDIT', 'SURFACE', True),
-        ], {'MESH':True}),
-        ObjectTypeInfo('CURVES', "Curves", {'RENDERABLE':True, 'MODIFIERS':True}, [
-            ('OBJECT', 'OBJECT', 'OBJECT', None, True),
-            ('EDIT_CURVES', 'EDIT', 'EDIT', 'CURVES', True),
-            ('SCULPT_CURVES', 'SCULPT', 'SCULPT', None, False),
-        ], {'MESH':True}),
-        ObjectTypeInfo('META', "MetaBall", {'RENDERABLE':True}, [
-            ('OBJECT', 'OBJECT', 'OBJECT', None, True),
-            ('EDIT_METABALL', 'EDIT', 'EDIT', 'META', True),
-        ], {'MESH':True}),
-        ObjectTypeInfo('FONT', "TextCurve", {'RENDERABLE':True, 'MODIFIERS':True}, [
-            ('OBJECT', 'OBJECT', 'OBJECT', None, True),
-            ('EDIT_TEXT', 'EDIT', 'EDIT', 'FONT', True),
-        ], {'MESH':True, 'CURVE':True}),
-        # HAIR? it is mentioned among Object.type enum values, but doesn't seem to be implemented so far
-        ObjectTypeInfo('POINTCLOUD', "PointCloud", {'RENDERABLE':True, 'MODIFIERS':True}, [
-            ('OBJECT', 'OBJECT', 'OBJECT', None, True),
-            ('EDIT_POINT_CLOUD', 'EDIT', 'EDIT', 'POINTCLOUD', True),
-        ], {'MESH':True}),
-        ObjectTypeInfo('VOLUME', "Volume", {'RENDERABLE':True, 'MODIFIERS':True}, [
-            ('OBJECT', 'OBJECT', 'OBJECT', None, True),
-        ]),
-        ObjectTypeInfo('GPENCIL', "GreasePencil", {'RENDERABLE':True, 'MODIFIERS':True}, [
-            ('OBJECT', 'OBJECT', 'OBJECT', None, True),
-            ('PAINT_GPENCIL', 'PAINT_GPENCIL', 'DRAW', None, False),
-            ('EDIT_GPENCIL', 'EDIT_GPENCIL', 'EDIT', 'GPENCIL', False),
-            ('SCULPT_GPENCIL', 'SCULPT_GPENCIL', 'SCULPT', None, False),
-            ('WEIGHT_GPENCIL', 'WEIGHT_GPENCIL', 'PAINT', 'WEIGHT', False),
-            ('VERTEX_GPENCIL', 'VERTEX_GPENCIL', 'PAINT', 'VERTEX', False),
-            # Not sure if these are actully used, but they are listed among the Context.mode enum items
-            ('PAINT_GREASE_PENCIL', 'PAINT_GPENCIL', 'DRAW', None, False),
-            ('EDIT_GREASE_PENCIL', 'EDIT_GPENCIL', 'EDIT', 'GPENCIL', False),
-        ]),
-        ObjectTypeInfo('ARMATURE', "Armature", {}, [
-            ('OBJECT', 'OBJECT', 'OBJECT', None, True),
-            ('EDIT_ARMATURE', 'EDIT', 'EDIT', 'ARMATURE', True),
-            ('POSE', 'POSE', 'POSE', None, True),
-        ]),
-        ObjectTypeInfo('LATTICE', "Lattice", {'MODIFIERS':True}, [
-            ('OBJECT', 'OBJECT', 'OBJECT', None, True),
-            ('EDIT_LATTICE', 'EDIT', 'EDIT', 'LATTICE', True),
-        ]),
-        ObjectTypeInfo('EMPTY', None, {'RENDERABLE':True}, [
-            ('OBJECT', 'OBJECT', 'OBJECT', None, True),
-        ]),
-        ObjectTypeInfo('LIGHT', "Light", {'RENDERABLE':True}, [
-            ('OBJECT', 'OBJECT', 'OBJECT', None, True),
-        ]),
-        ObjectTypeInfo('LIGHT_PROBE', "LightProbe", {'RENDERABLE':True}, [
-            ('OBJECT', 'OBJECT', 'OBJECT', None, True),
-        ]),
-        ObjectTypeInfo('CAMERA', "Camera", {'RENDERABLE':True}, [
-            ('OBJECT', 'OBJECT', 'OBJECT', None, True),
-        ]),
-        ObjectTypeInfo('SPEAKER', "Speaker", {'RENDERABLE':True}, [
-            ('OBJECT', 'OBJECT', 'OBJECT', None, True),
-        ]),
-    ]
-    # For some reason, python considers object_types to not be defined in the scope of this dict comprehension
-    object_infos = {obj_info.name: obj_info for obj_info in object_infos if obj_info.name in ObjectTypeInfo.object_types}
-    mode_infos = {mode.context: mode for obj_info in object_infos.values() for mode in obj_info.modes}
-    
     @classmethod
     def mode_from_object(cls, obj):
         if not obj: return 'OBJECT'
@@ -1621,3 +1542,85 @@ class BlEnums:
             "particle", "render", "scene", "texture", "world"
         },
     }
+
+# Due to python's scope idiosyncrasies, these attributes are easier to define outside of the class
+BlEnums.object_infos = [
+    ObjectTypeInfo('MESH', "Mesh", {'RENDERABLE':True, 'MODIFIERS':True}, [
+        ('OBJECT', 'OBJECT', 'OBJECT', None, True),
+        ('EDIT_MESH', 'EDIT', 'EDIT', 'MESH', True),
+        ('SCULPT', 'SCULPT', 'SCULPT', None, False),
+        ('PAINT_WEIGHT', 'WEIGHT_PAINT', 'PAINT', 'WEIGHT', False),
+        ('PAINT_VERTEX', 'VERTEX_PAINT', 'PAINT', 'VERTEX', False),
+        ('PAINT_TEXTURE', 'TEXTURE_PAINT', 'PAINT', 'TEXTURE', False),
+        ('PARTICLE', 'PARTICLE_EDIT', 'EDIT', 'PARTICLE', False),
+    ], {'MESH':True, 'GPENCIL':True, 'POINTCLOUD':True}),
+    ObjectTypeInfo('CURVE', "Curve", {'RENDERABLE':True, 'MODIFIERS':True}, [
+        ('OBJECT', 'OBJECT', 'OBJECT', None, True),
+        ('EDIT_CURVE', 'EDIT', 'EDIT', 'CURVE', True),
+    ], {'MESH':True, 'GPENCIL':True, 'CURVES':True}),
+    ObjectTypeInfo('SURFACE', "SurfaceCurve", {'RENDERABLE':True, 'MODIFIERS':True}, [
+        ('OBJECT', 'OBJECT', 'OBJECT', None, True),
+        ('EDIT_SURFACE', 'EDIT', 'EDIT', 'SURFACE', True),
+    ], {'MESH':True}),
+    ObjectTypeInfo('CURVES', "Curves", {'RENDERABLE':True, 'MODIFIERS':True}, [
+        ('OBJECT', 'OBJECT', 'OBJECT', None, True),
+        ('EDIT_CURVES', 'EDIT', 'EDIT', 'CURVES', True),
+        ('SCULPT_CURVES', 'SCULPT', 'SCULPT', None, False),
+    ], {'MESH':True}),
+    ObjectTypeInfo('META', "MetaBall", {'RENDERABLE':True}, [
+        ('OBJECT', 'OBJECT', 'OBJECT', None, True),
+        ('EDIT_METABALL', 'EDIT', 'EDIT', 'META', True),
+    ], {'MESH':True}),
+    ObjectTypeInfo('FONT', "TextCurve", {'RENDERABLE':True, 'MODIFIERS':True}, [
+        ('OBJECT', 'OBJECT', 'OBJECT', None, True),
+        ('EDIT_TEXT', 'EDIT', 'EDIT', 'FONT', True),
+    ], {'MESH':True, 'CURVE':True}),
+    # HAIR? it is mentioned among Object.type enum values, but doesn't seem to be implemented so far
+    ObjectTypeInfo('POINTCLOUD', "PointCloud", {'RENDERABLE':True, 'MODIFIERS':True}, [
+        ('OBJECT', 'OBJECT', 'OBJECT', None, True),
+        ('EDIT_POINT_CLOUD', 'EDIT', 'EDIT', 'POINTCLOUD', True),
+    ], {'MESH':True}),
+    ObjectTypeInfo('VOLUME', "Volume", {'RENDERABLE':True, 'MODIFIERS':True}, [
+        ('OBJECT', 'OBJECT', 'OBJECT', None, True),
+    ]),
+    ObjectTypeInfo('GPENCIL', "GreasePencil", {'RENDERABLE':True, 'MODIFIERS':True}, [
+        ('OBJECT', 'OBJECT', 'OBJECT', None, True),
+        ('PAINT_GPENCIL', 'PAINT_GPENCIL', 'DRAW', None, False),
+        ('EDIT_GPENCIL', 'EDIT_GPENCIL', 'EDIT', 'GPENCIL', False),
+        ('SCULPT_GPENCIL', 'SCULPT_GPENCIL', 'SCULPT', None, False),
+        ('WEIGHT_GPENCIL', 'WEIGHT_GPENCIL', 'PAINT', 'WEIGHT', False),
+        ('VERTEX_GPENCIL', 'VERTEX_GPENCIL', 'PAINT', 'VERTEX', False),
+    ]),
+    ObjectTypeInfo('GREASEPENCIL', "GreasePencilv3", {'RENDERABLE':True, 'MODIFIERS':True}, [
+        ('OBJECT', 'OBJECT', 'OBJECT', None, True),
+        ('PAINT_GREASE_PENCIL', 'PAINT_GREASEPENCIL', 'DRAW', None, False),
+        ('EDIT_GREASE_PENCIL', 'EDIT_GREASEPENCIL', 'EDIT', 'GREASEPENCIL', False),
+    ]),
+    ObjectTypeInfo('ARMATURE', "Armature", {}, [
+        ('OBJECT', 'OBJECT', 'OBJECT', None, True),
+        ('EDIT_ARMATURE', 'EDIT', 'EDIT', 'ARMATURE', True),
+        ('POSE', 'POSE', 'POSE', None, True),
+    ]),
+    ObjectTypeInfo('LATTICE', "Lattice", {'MODIFIERS':True}, [
+        ('OBJECT', 'OBJECT', 'OBJECT', None, True),
+        ('EDIT_LATTICE', 'EDIT', 'EDIT', 'LATTICE', True),
+    ]),
+    ObjectTypeInfo('EMPTY', None, {'RENDERABLE':True}, [
+        ('OBJECT', 'OBJECT', 'OBJECT', None, True),
+    ]),
+    ObjectTypeInfo('LIGHT', "Light", {'RENDERABLE':True}, [
+        ('OBJECT', 'OBJECT', 'OBJECT', None, True),
+    ]),
+    ObjectTypeInfo('LIGHT_PROBE', "LightProbe", {'RENDERABLE':True}, [
+        ('OBJECT', 'OBJECT', 'OBJECT', None, True),
+    ]),
+    ObjectTypeInfo('CAMERA', "Camera", {'RENDERABLE':True}, [
+        ('OBJECT', 'OBJECT', 'OBJECT', None, True),
+    ]),
+    ObjectTypeInfo('SPEAKER', "Speaker", {'RENDERABLE':True}, [
+        ('OBJECT', 'OBJECT', 'OBJECT', None, True),
+    ]),
+]
+BlEnums.object_infos = {info.name: info for info in BlEnums.object_infos if info.name in BlEnums.object_types}
+BlEnums.mode_infos = {mode.context: mode for info in BlEnums.object_infos.values() for mode in info.modes}
+BlEnums.context_modes_safe = {mode for mode in BlEnums.context_modes if mode in BlEnums.mode_infos}

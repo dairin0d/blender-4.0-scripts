@@ -19,7 +19,7 @@
 bl_info = {
     "name": "Mouselook Navigation",
     "author": "dairin0d, moth3r",
-    "version": (1, 8, 1),
+    "version": (1, 8, 2),
     "blender": (3, 6, 0),
     "location": "View3D > orbit/pan/dolly/zoom/fly/walk",
     "description": "Provides extra 3D view navigation options (ZBrush mode) and customizability",
@@ -687,6 +687,10 @@ class MouselookNavigation:
             m_ofs.translation = self.explicit_orbit_origin
             self.pos = m_ofs @ pre_rotate_focus
             self.sv.focus = self.pos
+        
+        # Always synchronize focus with the current position, in case
+        # we are in camera mode and it has some rotation locks enabled
+        self.sv.focus = self.pos
         
         self.modes_state[mode] = (self.sv.is_perspective, self.sv.distance, self.pos.copy(), self.rot.copy(), self.euler.copy())
         
@@ -2226,7 +2230,7 @@ class ThisAddonPreferences:
     
     animation_fps: 50.0 | prop("Animation timer FPS", "Animation timer FPS")
     
-    raycast_modes: BlEnums.context_modes | prop("Object modes",
+    raycast_modes: BlEnums.context_modes_safe | prop("Object modes",
         "Object modes in which geometry detection is enabled\n"+
         "(e.g. Raycast and Selection methods are slow when sculpting high-detail meshes, "+
         "so you might want to disable them for Sculpt mode)",

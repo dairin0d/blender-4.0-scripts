@@ -594,6 +594,28 @@ class BlUtil:
                 return Vector()
         
         @staticmethod
+        def matrix_basis(obj):
+            # Manual calculation might be useful when matrix is out of sync with location/rotation/scale
+            L = obj.delta_location + obj.location
+            if obj.rotation_mode == 'QUATERNION':
+                R = obj.delta_rotation_quaternion @ obj.rotation_quaternion
+            elif obj.rotation_mode == 'AXIS_ANGLE':
+                # Axis angle has no delta transform
+                R = Quaternion(obj.rotation_axis_angle[1:], obj.rotation_axis_angle[0])
+            else:
+                R = Euler(Vector(obj.delta_rotation_euler) + Vector(obj.rotation_euler)).to_quaternion()
+            S = obj.delta_scale * obj.scale
+            return Matrix.LocRotScale(L, R, S)
+        
+        @staticmethod
+        def matrix_basis_parent(obj, raw=False):
+            # Object's final matrix_world = (parent.matrix_world @ obj.matrix_parent_inverse) @ obj.matrix_basis
+            # WARNING: this does not take constraints into account
+            if not obj.parent: return Matrix()
+            matrix_parent = (obj.parent.matrix_world if raw else BlUtil.Object.matrix_parent(obj))
+            return matrix_parent @ obj.matrix_parent_inverse
+        
+        @staticmethod
         def matrix_world(obj, bone_name=""):
             if not obj: return Matrix()
             if bone_name:

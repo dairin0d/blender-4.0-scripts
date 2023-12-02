@@ -115,6 +115,7 @@ class SmartView3D:
         # With use_matrix=True navigation can be MUCH faster,
         # so it's probably worth having it enabled by default
         self.use_matrix = kwargs.get("use_matrix", True)
+        self.use_transform_locks = kwargs.get("use_transform_locks", True)
         
         return self
     
@@ -458,6 +459,44 @@ class SmartView3D:
             rv3d.view_rotation = rotation
         if self.force_update: rv3d.update()
     
+    def __copy_locked(self, new_data, old_data, locks):
+        return tuple((v0 if locked else v1) for locked, v0, v1 in zip(locks, old_data, new_data))
+    
+    def __set_object_matrix(self, obj, m):
+        if self.use_transform_locks:
+            pos = tuple(obj.location)
+            pos_locks = obj.lock_location
+            
+            if obj.rotation_mode == 'QUATERNION':
+                rot = tuple(obj.rotation_quaternion)
+                rot_locks = [*obj.lock_rotation, obj.lock_rotation_w]
+            elif obj.rotation_mode == 'AXIS_ANGLE':
+                rot = tuple(obj.rotation_axis_angle)
+                rot_locks = [*obj.lock_rotation, obj.lock_rotation_w]
+            else:
+                rot = tuple(obj.rotation_euler)
+                rot_locks = obj.lock_rotation
+            
+            scl = tuple(obj.scale)
+            scl_locks = obj.lock_scale
+        
+        obj.matrix_world = m
+        
+        if self.use_transform_locks:
+            if any(rot_locks):
+                if obj.rotation_mode == 'QUATERNION':
+                    obj.rotation_quaternion = self.__copy_locked(obj.rotation_quaternion, rot, rot_locks)
+                elif obj.rotation_mode == 'AXIS_ANGLE':
+                    obj.rotation_axis_angle = self.__copy_locked(obj.rotation_axis_angle, rot, rot_locks)
+                else:
+                    obj.rotation_euler = self.__copy_locked(obj.rotation_euler, rot, rot_locks)
+            
+            if any(pos_locks):
+                obj.location = self.__copy_locked(obj.location, pos, pos_locks)
+            
+            if any(scl_locks):
+                obj.scale = self.__copy_locked(obj.scale, scl, scl_locks)
+    
     def __cam_set_matrix(self, m):
         cam = self.space_data.camera
         
@@ -471,10 +510,10 @@ class SmartView3D:
             if max_parent != cam:
                 cm_inv = cam.matrix_world.inverted()
                 pm = cm_inv @ max_parent.matrix_world
-                max_parent.matrix_world = m @ pm
+                self.__set_object_matrix(max_parent, m @ pm)
                 return
         
-        cam.matrix_world = m
+        self.__set_object_matrix(cam, m)
     
     def __get(self):
         return self.region_data.view_distance

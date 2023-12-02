@@ -766,6 +766,73 @@ class BlUtil:
             # faces: tris, polys, none
             raise NotImplementedError("BlUtil.Object.get_geometry() is not implemented")
         
+        @staticmethod
+        def auto_smooth_get(obj):
+            if obj.type != 'MESH': return None
+            
+            mesh = obj.data
+            if hasattr(mesh, "use_auto_smooth"):
+                return dict(container=mesh, enabled_name="use_auto_smooth",
+                    enabled=mesh.use_auto_smooth, angle=mesh.auto_smooth_angle)
+            
+            # In Blender 4.1, auto smooth was replaced with a geometry nodes modifier
+            
+            for i in range(len(obj.modifiers)-1, -1, -1):
+                md = obj.modifiers[i]
+                if md.type != 'NODES': continue
+                node_group = md.node_group
+                if not node_group: continue
+                
+                library_weakref = node_group.library_weak_reference
+                if not library_weakref: continue
+                if library_weakref.id_name != 'NTSmooth by Angle': continue
+                
+                input_items = node_group.interface.items_tree.items()
+                md_inputs = {key:md[info.identifier] for key, info in input_items if info.identifier in md}
+                
+                return dict(container=md, enabled_name="show_viewport",
+                    enabled=md.show_viewport, inputs=md_inputs)
+            
+            return None
+        
+        @staticmethod
+        def auto_smooth_set(obj, data):
+            if obj.type != 'MESH': return
+            
+            if not isinstance(data, dict): data = {"enabled":bool(data)}
+            
+            mesh = obj.data
+            if hasattr(mesh, "use_auto_smooth"):
+                mesh.use_auto_smooth = data.get("enabled", mesh.use_auto_smooth)
+                mesh.auto_smooth_angle = data.get("angle", mesh.auto_smooth_angle)
+                return
+            
+            enable = data.get("enabled")
+            
+            obj_info = BlUtil.Object.auto_smooth_get(obj)
+            
+            if not obj_info:
+                if not enable: return
+                
+                with bpy.context.temp_override(object=obj, active_object=obj):
+                    relative_asset_identifier = "geometry_nodes\\smooth_by_angle.blend\\NodeTree\\Smooth by Angle"
+                    bpy.ops.object.modifier_add_node_group(asset_library_type='ESSENTIALS',
+                        asset_library_identifier="", relative_asset_identifier=relative_asset_identifier)
+                
+                obj_info = BlUtil.Object.auto_smooth_get(obj)
+            
+            md = obj_info["container"]
+            if enable is not None:
+                md.show_viewport = enable
+            
+            inputs = data.get("inputs")
+            if not inputs: return
+            
+            node_group = md.node_group
+            for key, info in node_group.interface.items_tree.items():
+                if key not in inputs: continue
+                md[info.identifier] = inputs[key]
+        
         # active/selection/hidden states can be different for each view layer
         
         @staticmethod

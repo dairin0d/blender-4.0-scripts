@@ -24,7 +24,7 @@ from mathutils import Color, Vector, Matrix, Quaternion, Euler
 from .utils_python import DummyObject
 from .bounds import Bounds
 from .utils_gl import TextWrapper
-from .bpy_inspect import BlRna, prop
+from .bpy_inspect import BlRna, prop, BpyData, IDProp
 
 #============================================================================#
 
@@ -240,19 +240,11 @@ class NestedLayout:
         return NestedLayout._dummy_obj
     _dummy_obj = DummyObject()
     
-    def prop_enum_filtered(self, obj, prop_name, exclude=(), override={}, text_ctxt="", translate=True):
-        if override is None:
-            override = (lambda identifier: {})
-        elif isinstance(override, dict):
-            kwargs = dict(override)
-            override = (lambda identifier: kwargs)
-        
-        for item in BlRna.enum_items(obj, prop_name, container=iter):
-            if item.identifier in exclude: continue
-            kwargs = override(item.identifier)
-            kwargs.setdefault("text_ctxt", text_ctxt)
-            kwargs.setdefault("translate", translate)
-            self.prop_enum(obj, prop_name, item.identifier, **kwargs)
+    def prop_enum_filtered(self, data, property, exclude=(), override={}, text_ctxt="", translate=True):
+        BlUI.prop_enum_filtered(self, data, property, exclude, override, text_ctxt, translate)
+    
+    def custom_any_ID(self, data, property, type_property, text=None, text_ctxt="", translate=True):
+        BlUI.custom_any_ID(self, data, property, type_property, text, text_ctxt, translate)
     
     # ===== FOLD (currently very hacky) ===== #
     # Each foldable micropanel needs to store its fold-status
@@ -550,5 +542,61 @@ class BlUI:
             kv = key[len(prefix):].split("=", 1)
             metadata[kv[0]] = (kv[1] if len(kv) > 1 else None)
         return metadata
+    
+    # Utility UI drawing methods:
+    
+    def prop_enum_filtered(layout, data, property, exclude=(), override={}, text_ctxt="", translate=True):
+        if override is None:
+            override = (lambda identifier: {})
+        elif isinstance(override, dict):
+            kwargs = dict(override)
+            override = (lambda identifier: kwargs)
+        
+        for item in BlRna.enum_items(data, property, container=iter):
+            if item.identifier in exclude: continue
+            kwargs = override(item.identifier)
+            kwargs.setdefault("text_ctxt", text_ctxt)
+            kwargs.setdefault("translate", translate)
+            layout.prop_enum(data, property, item.identifier, **kwargs)
+    
+    # Blender's built-in  prop() / template_ID() / template_any_ID() don't really
+    # work for custom generic ID properties, so we have to use a workaround.
+    # Adapted from https://blender.stackexchange.com/questions/292054/
+    def custom_any_ID(layout, data, property, type_property, text=None, text_ctxt="", translate=True):
+        if text is None: text = data.bl_rna.properties[property].name
+        
+        if text:
+            split = layout.split(factor=0.33)
+            row = split.row()
+            row.label(text=text, text_ctxt=text_ctxt, translate=translate)
+            row = split.row(align=True)
+        else:
+            row = layout.row(align=True)
+        
+        type_name = getattr(data, type_property)
+        id_type_info = IDProp.id_types_map.get(type_name)
+        if id_type_info:
+            collection_name = BpyData.get_data_name(id_type_info.type)
+            if collection_name:
+                icon = data.bl_rna.properties[type_property].enum_items[type_name].icon
+                if icon == 'NONE': icon = id_type_info.icon
+                
+                # ID-Type Selector - just have a menu of icons
+                # HACK: special group just for the enum,
+                # otherwise we get ugly layout with text included too...
+                sub = row.row(align=True)
+                sub.alignment = 'LEFT'
+                sub.prop(data, type_property, icon=icon, icon_only=True)
+                
+                # ID-Block Selector - just use pointer widget...
+                # HACK: special group to counteract the effects of the previous enum,
+                # which now pushes everything too far right.
+                sub = row.row(align=True)
+                sub.alignment = 'EXPAND'
+                sub.prop_search(data, property, bpy.data, collection_name, text="")
+            else:
+                row.label(text=f"{id_type_info.type} not recognized", icon='ERROR')
+        else:
+            row.label(text=f"{type_name} not recognized", icon='ERROR')
 
 #============================================================================#

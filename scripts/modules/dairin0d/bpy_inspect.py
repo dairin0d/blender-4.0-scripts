@@ -23,6 +23,8 @@ import bpy
 
 from mathutils import Vector, Matrix, Quaternion, Euler, Color
 
+from idprop.types import IDPropertyArray, IDPropertyGroup
+
 from collections import namedtuple
 
 import numpy as np
@@ -90,7 +92,7 @@ class BlRna:
             #obj.as_pointer()
             id_data = obj.id_data
             return True
-        except ReferenceError:
+        except (ReferenceError, AttributeError):
             return False
     
     @staticmethod
@@ -1624,3 +1626,371 @@ BlEnums.object_infos = [
 BlEnums.object_infos = {info.name: info for info in BlEnums.object_infos if info.name in BlEnums.object_types}
 BlEnums.mode_infos = {mode.context: mode for info in BlEnums.object_infos.values() for mode in info.modes}
 BlEnums.context_modes_safe = {mode for mode in BlEnums.context_modes if mode in BlEnums.mode_infos}
+
+#============================================================================#
+
+def make_idprops_converters():
+    def to_bool(value):
+        try:
+            return bool(value)
+        except:
+            return None
+    
+    def to_float(value):
+        try:
+            return float(value)
+        except:
+            return None
+    
+    def safe_round(value):
+        if value <= -0x80000000: return -0x80000000
+        if value >= 0x7FFFFFFF: return 0x7FFFFFFF
+        return (0 if math.isnan(value) else round(value))
+    
+    def to_int(value):
+        if isinstance(value, int): return value
+        if isinstance(value, bool): return int(value)
+        if isinstance(value, str): value = to_float(value)
+        return (None if value is None else safe_round(value))
+    
+    def to_list(value, ref_value):
+        if not isinstance(ref_value, list): ref_value = [ref_value]
+        
+        ref_type = type(ref_value[0])
+        converter = (to_int if ref_type is int else ref_type)
+        n = len(value)
+        
+        if not isinstance(value, list):
+            value = converter(value)
+            return (ref_value if value is None else [value] * n)
+        
+        def get(i):
+            if i >= n: return ref_value[i]
+            if value[i] is None: return ref_value[i]
+            v = converter(value[i])
+            return (ref_value[i] if v is None else v)
+        return [get(i) for i in range(len(ref_value))]
+    
+    # (source type, target type) : list, bool, int, float, str; dict is N/A
+    converters = {
+        (list, bool): (lambda value, ref_value: ref_value if value[0] is None else bool(value[0])),
+        (list, int): (lambda value, ref_value: ref_value if value[0] is None else to_int(value[0])),
+        (list, float): (lambda value, ref_value: ref_value if value[0] is None else float(value[0])),
+        (list, str): (lambda value, ref_value: ref_value if value[0] is None else str(value[0])),
+        (list, list): to_list,
+        (bool, list): to_list,
+        (int, list): to_list,
+        (float, list): to_list,
+        (str, list): to_list,
+        (bool, bool): (lambda value, ref_value: value),
+        (bool, int): (lambda value, ref_value: int(value)),
+        (bool, float): (lambda value, ref_value: float(value)),
+        (bool, str): (lambda value, ref_value: str(value)),
+        (int, bool): (lambda value, ref_value: bool(value)),
+        (int, int): (lambda value, ref_value: value),
+        (int, float): (lambda value, ref_value: float(value)),
+        (int, str): (lambda value, ref_value: str(value)),
+        (float, bool): (lambda value, ref_value: bool(value)),
+        (float, int): (lambda value, ref_value: to_int(value)),
+        (float, float): (lambda value, ref_value: value),
+        (float, str): (lambda value, ref_value: str(value)),
+        (str, bool): (lambda value, ref_value: to_bool(value)),
+        (str, int): (lambda value, ref_value: to_int(value)),
+        (str, float): (lambda value, ref_value: to_float(value)),
+        (str, str): (lambda value, ref_value: value),
+    }
+    
+    return converters
+
+class IDPropIDType:
+    def __init__(self, idname, name, type_name="", icon='NONE', broken=False):
+        self.idname = idname
+        self.name = name
+        self.type = getattr(bpy.types, type_name or name.replace(" ", ""), None)
+        self.icon = icon
+        self.broken = broken
+
+class IDProp:
+    type_map = {bool: "bool", int: "int", float: "float", str: "string"}
+    typecode_map = {"b": "bool", "i": "int", "f": "float", "d": "float"}
+    
+    float_subtypes = [
+        ('NONE', "Plain Data", "Data values without special behavior"),
+        ('PIXEL', "Pixel", "Pixel"),
+        ('PERCENTAGE', "Percentage", "Percentage"),
+        ('FACTOR', "Factor", "Factor"),
+        ('ANGLE', "Angle", "Angle"),
+        ('TIME_ABSOLUTE', "Time", "Time specified in seconds"),
+        ('DISTANCE', "Distance", "Distance"),
+        ('POWER', "Power", "Power"),
+        ('TEMPERATURE', "Temperature", "Temperature"),
+    ]
+    
+    float_array_subtypes = [
+        ('NONE', "Plain Data", "Data values without special behavior"),
+        ('COLOR', "Linear Color", "Color in the linear space"),
+        ('COLOR_GAMMA', "Gamma-Corrected Color", "Color in the gamma corrected space"),
+        ('EULER', "Euler Angles", "Euler rotation angles in radians"),
+        ('QUATERNION', "Quaternion Rotation", "Quaternion rotation"),
+    ]
+    
+    subtype_names = {
+        ("float", False): {item[0] for item in float_subtypes},
+        ("float", True): {item[0] for item in float_array_subtypes},
+    }
+    
+    # https://docs.blender.org/api/current/bpy_types_enum_items/id_type_items.html
+    # Used at least in bpy.types.KeyingSetPath.id_type
+    id_types = [
+        IDPropIDType('ACTION', "Action", icon='ACTION'),
+        IDPropIDType('ARMATURE', "Armature", icon='ARMATURE_DATA'),
+        IDPropIDType('BRUSH', "Brush", icon='BRUSH_DATA'),
+        IDPropIDType('CACHEFILE', "Cache File", icon='FILE_CACHE'),
+        IDPropIDType('CAMERA', "Camera", icon='CAMERA_DATA'),
+        IDPropIDType('COLLECTION', "Collection", icon='OUTLINER_COLLECTION'),
+        IDPropIDType('CURVE', "Curve", icon='CURVE_DATA'),
+        IDPropIDType('CURVES', "Curves", icon='CURVES_DATA'),
+        IDPropIDType('FONT', "Font", "VectorFont", icon='FONT_DATA'),
+        IDPropIDType('GREASEPENCIL', "Grease Pencil", icon='GREASEPENCIL'),
+        IDPropIDType('GREASEPENCIL_V3', "Grease Pencil v3", icon='GREASEPENCIL'),
+        IDPropIDType('IMAGE', "Image", icon='IMAGE_DATA'),
+        IDPropIDType('KEY', "Key", icon='SHAPEKEY_DATA'),
+        IDPropIDType('LATTICE', "Lattice", icon='LATTICE_DATA'),
+        IDPropIDType('LIBRARY', "Library", icon='LIBRARY_DATA_DIRECT'),
+        IDPropIDType('LIGHT', "Light", icon='LIGHT'),
+        IDPropIDType('LIGHT_PROBE', "Light Probe", icon='LIGHTPROBE_CUBEMAP'),
+        IDPropIDType('LINESTYLE', "Line Style", "FreestyleLineStyle", icon='LINE_DATA'),
+        IDPropIDType('MASK', "Mask", icon='MOD_MASK'),
+        IDPropIDType('MATERIAL', "Material", icon='MATERIAL'),
+        IDPropIDType('MESH', "Mesh", icon='MESH_DATA'),
+        IDPropIDType('META', "Metaball", "MetaBall", icon='META_DATA'),
+        IDPropIDType('MOVIECLIP', "Movie Clip", icon='FILE_MOVIE'),
+        IDPropIDType('NODETREE', "Node Tree", icon='NODETREE'),
+        IDPropIDType('OBJECT', "Object", icon='OBJECT_DATA'),
+        IDPropIDType('PAINTCURVE', "Paint Curve", icon='CURVE_BEZCURVE'),
+        IDPropIDType('PALETTE', "Palette", icon='COLOR'),
+        IDPropIDType('PARTICLE', "Particle", "ParticleSettings", icon='PARTICLES'),
+        IDPropIDType('POINTCLOUD', "Point Cloud", icon='POINTCLOUD_DATA'),
+        IDPropIDType('SCENE', "Scene", icon='SCENE_DATA'),
+        IDPropIDType('SCREEN', "Screen", icon='SCREEN_BACK', broken=True),
+        IDPropIDType('SOUND', "Sound", icon='SOUND'),
+        IDPropIDType('SPEAKER', "Speaker", icon='SPEAKER'),
+        IDPropIDType('TEXT', "Text", icon='TEXT'),
+        IDPropIDType('TEXTURE', "Texture", icon='TEXTURE'),
+        IDPropIDType('VOLUME', "Volume", icon='VOLUME_DATA'),
+        IDPropIDType('WINDOWMANAGER', "Window Manager", icon='WINDOW'),
+        IDPropIDType('WORKSPACE', "Workspace", icon='WORKSPACE'),
+        IDPropIDType('WORLD', "World", icon='WORLD'),
+    ]
+    id_types_map = {item.idname: item for item in id_types}
+    id_types_broken = {item.type: item for item in id_types if item.broken}
+    
+    converters = make_idprops_converters()
+    
+    types_with_metadata = (bool, int, float, str, IDPropertyArray, type(None), bpy.types.ID)
+    
+    def _get(self):
+        return self.key in self.container
+    exists = property(_get)
+    
+    def _get(self):
+        return self.normalize(self.container[self.key])
+    def _set(self, value):
+        self.container[self.key] = self.normalize(value)
+    value = property(_get, _set)
+    
+    def _get(self):
+        return self.get_type_info(self.container[self.key])
+    type_info = property(_get)
+    
+    def _get(self):
+        return self.get_metadata(self.container, self.key)
+    def _set(self, value):
+        self.set_metadata(self.container, self.key, value)
+    metadata = property(_get, _set)
+    
+    def _get(self):
+        return self.get_overridable(self.container, self.key)
+    def _set(self, value):
+        self.set_overridable(self.container, self.key, value)
+    overridable = property(_get, _set)
+    
+    def _get(self):
+        return self.get_data(self.container, self.key)
+    def _set(self, value):
+        self.set_data(self.container, self.key, value)
+    data = property(_get, _set)
+    
+    def _get(self):
+        # Adapted from Blender's rna_prop_ui.py
+        rna_prop = self.container.bl_rna.properties.get(self.key)
+        return (rna_prop.is_runtime if rna_prop else None)
+    is_runtime = property(_get)
+    
+    def __init__(self, container, key):
+        self.container = container
+        self.key = key
+    
+    @classmethod
+    def get_type_info(cls, value, string_arrays=False):
+        # Blender actually can store the following kinds of properties:
+        # * With metadata support:
+        #   * Basic types (bool, int, float, str)
+        #   * IDPropertyArray (equivalent of bool[], int[], float[])
+        #   * bpy.types.ID descendants / None (though only at top-level or in dicts, but not in lists)
+        # * Without metadata support:
+        #   * Python lists of objects (str and/or IDPropertyGroup)
+        #   * IDPropertyGroup (equivalent of dict, with string keys and values of any custom-prop type)
+        # IDPropertyArray has a method to_list()
+        # IDPropertyGroup has a method to_dict()
+        # These types are located in the idprop.types module
+        if (value is None) or isinstance(value, bpy.types.ID): return "idblock", 0
+        value_type = type(value)
+        type_name = cls.type_map.get(value_type)
+        if type_name: return type_name, 0
+        if value_type is IDPropertyArray: return cls.typecode_map.get(value.typecode), len(value)
+        size = (len(value) if value_type is list else 0)
+        if string_arrays and (size > 0) and all(isinstance(v, str) for v in value): return "string", size
+        return "python", size
+    
+    @classmethod
+    def normalize(cls, value):
+        # Convert the value (either a custom prop, or a result of expression) to assignable form
+        if value is None: return None
+        if isinstance(value, bpy.types.ID): return (value if BlRna.is_valid(value) else None)
+        value_type = type(value)
+        if value_type in cls.type_map: return value
+        if value_type is IDPropertyArray: return value.to_list()
+        if value_type is IDPropertyGroup: return value.to_dict()
+        if hasattr(value, "items"): return {str(k): cls.normalize(v) for k, v in value.items()}
+        return [cls.normalize(v) for v in value if v is not None]
+    
+    @classmethod
+    def _safe_get_metadata(cls, container, key, value):
+        is_idblock = isinstance(value, bpy.types.ID)
+        
+        if is_idblock:
+            id_type_info = cls.id_types_broken.get(type(value))
+            if id_type_info:
+                return None, {"description": "", "default": None, "subtype": 'NONE', "id_type": id_type_info.idname}
+        
+        prop_manager = container.id_properties_ui(key)
+        metadata = prop_manager.as_dict()
+        
+        if (is_idblock or (value is None)) and ("id_type" not in metadata):
+            if value is None:
+                metadata["id_type"] = 'OBJECT'
+            else:
+                # Note: we can't use a map for this, since cls.id_types
+                # may contain base classes, so we have to use isinstance()
+                for id_type_info in cls.id_types:
+                    if id_type_info.type and isinstance(value, id_type_info.type):
+                        metadata["id_type"] = id_type_info.idname
+                        break
+        
+        metadata.setdefault("description", "") # may not always be present
+        
+        if isinstance(value, IDPropertyArray):
+            # Blender does not ensure that len(default) == len(value)
+            default = metadata["default"]
+            nv, nd = len(value), len(default)
+            if nd < nv:
+                metadata["default"] = default + [type(value[0])()] * (nv - nd)
+            elif nd > nv:
+                metadata["default"] = default[:nv]
+        
+        return prop_manager, metadata
+    
+    @classmethod
+    def get_metadata(cls, container, key):
+        value = container[key]
+        if not isinstance(value, cls.types_with_metadata): return None
+        
+        prop_manager, metadata = cls._safe_get_metadata(container, key, value)
+        
+        return metadata
+    
+    @classmethod
+    def set_metadata(cls, container, key, metadata, sanitize=False):
+        if not metadata: return
+        
+        value = container[key]
+        if not isinstance(value, cls.types_with_metadata): return None
+        
+        if not sanitize:
+            container.id_properties_ui(key).update(**metadata)
+            return
+        
+        prop_manager, sanitized = cls._safe_get_metadata(container, key, value)
+        if prop_manager is None: return
+        
+        for name, dst_value in metadata.items():
+            if dst_value is None: continue
+            
+            src_value = sanitized.get(name)
+            if src_value is None: continue
+            
+            if name == "subtype":
+                type_name, size = cls.get_type_info(value)
+                subtype_names = cls.subtype_names.get((type_name, (size > 0)))
+                if subtype_names and (dst_value in subtype_names):
+                    sanitized[name] = dst_value
+                continue
+            elif name == "id_type":
+                id_type_info = cls.id_types_map.get(dst_value)
+                if id_type_info and not id_type_info.broken:
+                    sanitized[name] = dst_value
+                continue
+            
+            src_type = type(src_value)
+            dst_type = type(dst_value)
+            
+            converter = cls.converters.get((dst_type, src_type))
+            if not converter: continue
+            
+            dst_value = converter(dst_value, src_value)
+            if dst_value is None: continue
+            sanitized[name] = dst_value
+        
+        prop_manager.update(**sanitized)
+    
+    @classmethod
+    def get_overridable(cls, container, key):
+        escaped = bpy.utils.escape_identifier(key)
+        return container.is_property_overridable_library(f'["{escaped}"]')
+    
+    @classmethod
+    def set_overridable(cls, container, key, is_overridable):
+        if is_overridable is None: return
+        escaped = bpy.utils.escape_identifier(key)
+        container.property_overridable_library_set(f'["{escaped}"]', is_overridable)
+    
+    @classmethod
+    def get_data(cls, container, key):
+        return dict(
+            value=cls.normalize(container[key]),
+            metadata=cls.get_metadata(container, key),
+            overridable=cls.get_overridable(container, key),
+        )
+    
+    @classmethod
+    def set_data(cls, container, key, data, sanitize=True):
+        # Normalize to make sure we don't assign invalid references
+        value = data["value"]
+        if sanitize: value = cls.normalize(value)
+        container[key] = value # assign the value first
+        cls.set_metadata(container, key, data.get("metadata"))
+        cls.set_overridable(container, key, data.get("overridable"))
+    
+    @classmethod
+    def rename(cls, container, old_key, new_key):
+        data = cls.get_data(container, old_key)
+        container.pop(old_key, None)
+        cls.set_data(container, new_key, data, sanitize=False)
+        return data
+    
+    @classmethod
+    def reset(cls, container, key):
+        if key not in container: return
+        metadata = cls.get_metadata(container, key)
+        container[key] = (metadata["default"] if metadata else None)

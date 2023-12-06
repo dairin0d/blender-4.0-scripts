@@ -1758,7 +1758,7 @@ class IDProp:
         IDPropIDType('LATTICE', "Lattice", icon='LATTICE_DATA'),
         IDPropIDType('LIBRARY', "Library", icon='LIBRARY_DATA_DIRECT'),
         IDPropIDType('LIGHT', "Light", icon='LIGHT'),
-        IDPropIDType('LIGHT_PROBE', "Light Probe", icon='LIGHTPROBE_CUBEMAP'),
+        IDPropIDType('LIGHT_PROBE', "Light Probe", icon='OUTLINER_DATA_LIGHTPROBE'),
         IDPropIDType('LINESTYLE', "Line Style", "FreestyleLineStyle", icon='LINE_DATA'),
         IDPropIDType('MASK', "Mask", icon='MOD_MASK'),
         IDPropIDType('MATERIAL', "Material", icon='MATERIAL'),

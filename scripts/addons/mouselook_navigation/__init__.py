@@ -630,6 +630,9 @@ class MouselookNavigation:
                                 self.sv.is_perspective = not is_orbit_snap
                             elif self.rotation_snap_projection_mode == 'ORTHO_ORIGINAL':
                                 self.sv.is_perspective = (False if is_orbit_snap else self._perspective0)
+                            elif is_orbit_snap:
+                                numpad_orientation = self.detect_numpad_orientation(self.sv.rotation)
+                                self.sv.is_perspective = not numpad_orientation
                         else:
                             self.sv.is_perspective = self._perspective0
                         

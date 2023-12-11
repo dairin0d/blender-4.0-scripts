@@ -2810,6 +2810,10 @@ class TextureFilenameParser:
 
 class BpyPath:
     @staticmethod
+    def normpath(path, *, start=None, library=None):
+        return os.path.normcase(BpyPath.abspath(path, start=start, library=library))
+    
+    @staticmethod
     def normslash(path):
         return path.replace(os.path.sep, "/")
     

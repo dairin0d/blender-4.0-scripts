@@ -24,7 +24,7 @@ from mathutils import Color, Vector, Matrix, Quaternion, Euler
 from .utils_python import DummyObject
 from .bounds import Bounds
 from .utils_gl import TextWrapper
-from .bpy_inspect import BlRna, prop, BpyData, IDProp
+from .bpy_inspect import BlRna, prop, IDTypes
 
 #============================================================================#
 
@@ -573,12 +573,12 @@ class BlUI:
         else:
             row = layout.row(align=True)
         
-        type_name = getattr(data, type_property)
-        id_type_info = IDProp.id_types_map.get(type_name)
+        id_type = getattr(data, type_property)
+        id_type_info = IDTypes.map("id_type").get(id_type)
         if id_type_info:
-            collection_name = BpyData.get_data_name(id_type_info.type)
+            collection_name = id_type_info.data_name
             if collection_name:
-                icon = data.bl_rna.properties[type_property].enum_items[type_name].icon
+                icon = data.bl_rna.properties[type_property].enum_items[id_type].icon
                 if icon == 'NONE': icon = id_type_info.icon
                 
                 # ID-Type Selector - just have a menu of icons
@@ -597,6 +597,6 @@ class BlUI:
             else:
                 row.label(text=f"{id_type_info.type} not recognized", icon='ERROR')
         else:
-            row.label(text=f"{type_name} not recognized", icon='ERROR')
+            row.label(text=f"{id_type} not recognized", icon='ERROR')
 
 #============================================================================#

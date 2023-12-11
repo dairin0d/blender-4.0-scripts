@@ -18,14 +18,14 @@
 
 import sys
 import itertools
+import inspect
+from collections import namedtuple
 
 import bpy
 
 from mathutils import Vector, Matrix, Quaternion, Euler, Color
 
 from idprop.types import IDPropertyArray, IDPropertyGroup
-
-from collections import namedtuple
 
 import numpy as np
 
@@ -467,79 +467,6 @@ class BlRna:
                 #print(f"Not same: {name} in {type(valueA)}/{type(valueB)}")
                 return False
         return True
-
-class BpyData:
-    bpy_type_to_data = {}
-    bpy_data_to_type = {}
-    
-    @classmethod
-    def match_bpy_ID_type_and_data(cls):
-        ID_types = []
-        for name in dir(bpy.types):
-            if name == "ID": continue
-            t = getattr(bpy.types, name) # Note: t may be not a class
-            if not issubclass_safe(t, bpy.types.ID): continue
-            ID_types.append(name)
-        
-        ID_datas = []
-        for name in dir(bpy.data):
-            if name in ("bl_rna", "rna_type"): continue
-            d = getattr(bpy.data, name)
-            if not hasattr(d, "foreach_get"): continue
-            ID_datas.append(name)
-        
-        cls.bpy_type_to_data = {}
-        cls.bpy_data_to_type = {}
-        for data_name in ID_datas:
-            data_name = data_name.lower()
-            best_matches = (0, 0.0)
-            best_type_name = None
-            for type_name in ID_types:
-                abs_matches = 0
-                parts_count = 0
-                for name_part in split_camelcase(type_name):
-                    name_part = name_part.lower()
-                    name_part = name_part[:-1] # for e.g. Library -> libraries
-                    part_len = len(name_part)
-                    if name_part in data_name: abs_matches += part_len
-                    parts_count += part_len
-                rel_matches = abs_matches / float(parts_count)
-                matches = (abs_matches, rel_matches)
-                if matches > best_matches:
-                    best_matches = matches
-                    best_type_name = type_name
-            if not best_type_name: continue
-            cls.bpy_type_to_data[best_type_name] = data_name
-            cls.bpy_data_to_type[data_name] = best_type_name
-    
-    @classmethod
-    def type_names(cls):
-        if not cls.bpy_type_to_data: cls.match_bpy_ID_type_and_data()
-        return cls.bpy_type_to_data.keys()
-    
-    @classmethod
-    def data_names(cls):
-        if not cls.bpy_type_to_data: cls.match_bpy_ID_type_and_data()
-        return cls.bpy_data_to_type.keys()
-    
-    @classmethod
-    def get_type_name(cls, data_name):
-        if not cls.bpy_type_to_data: cls.match_bpy_ID_type_and_data()
-        return cls.bpy_data_to_type.get(data_name)
-    
-    @classmethod
-    def get_data_name(cls, bpy_type):
-        if not cls.bpy_type_to_data: cls.match_bpy_ID_type_and_data()
-        if not isinstance(bpy_type, str): bpy_type = bpy_type.bl_rna.identifier
-        return cls.bpy_type_to_data.get(bpy_type)
-    
-    @classmethod
-    def to_data(cls, bpy_type):
-        # Since some version of Blender 2.8 beta, bpy.data is empty
-        # (not populated) during addon loading (maybe Blender bug?)
-        if not cls.bpy_type_to_data: cls.match_bpy_ID_type_and_data()
-        if not isinstance(bpy_type, str): bpy_type = bpy_type.bl_rna.identifier
-        return getattr(bpy.data, cls.bpy_type_to_data[bpy_type])
 
 class BpyOp:
     @staticmethod
@@ -1577,7 +1504,6 @@ BlEnums.object_infos = [
         ('OBJECT', 'OBJECT', 'OBJECT', None, True),
         ('EDIT_TEXT', 'EDIT', 'EDIT', 'FONT', True),
     ], {'MESH':True, 'CURVE':True}),
-    # HAIR? it is mentioned among Object.type enum values, but doesn't seem to be implemented so far
     ObjectTypeInfo('POINTCLOUD', "PointCloud", {'RENDERABLE':True, 'MODIFIERS':True}, [
         ('OBJECT', 'OBJECT', 'OBJECT', None, True),
         ('EDIT_POINT_CLOUD', 'EDIT', 'EDIT', 'POINTCLOUD', True),
@@ -1626,6 +1552,206 @@ BlEnums.object_infos = [
 BlEnums.object_infos = {info.name: info for info in BlEnums.object_infos if info.name in BlEnums.object_types}
 BlEnums.mode_infos = {mode.context: mode for info in BlEnums.object_infos.values() for mode in info.modes}
 BlEnums.context_modes_safe = {mode for mode in BlEnums.context_modes if mode in BlEnums.mode_infos}
+
+#============================================================================#
+
+bpy_types = {name:getattr(bpy.types, name) for name in dir(bpy.types) if inspect.isclass(getattr(bpy.types, name))}
+
+class IDTypes:
+    _maps = {}
+    _sorted_keys = {}
+    all = []
+    
+    @classmethod
+    def register(cls, **kwargs):
+        info = IDTypes()
+        for key, value in kwargs.items():
+            setattr(info, key, value)
+        cls.all.append(info)
+    
+    @classmethod
+    def validate(cls):
+        registered_types = {t for key in cls.map("types").keys() for t in key}
+        all_id_types = {v for v in bpy_types.values() if issubclass(v, bpy.types.ID)}
+        print("ID types not present in IDTypes:", all_id_types - registered_types)
+    
+    @classmethod
+    def map(cls, attr_name):
+        attr_map = cls._maps.get(attr_name)
+        if attr_map is not None: return attr_map
+        attr_map = {}
+        for info in cls.all:
+            value = getattr(info, attr_name)
+            if (value is None) or (value in attr_map) or (info.type is None): continue
+            attr_map[value] = info
+        cls._maps[attr_name] = attr_map
+        return attr_map
+    
+    @classmethod
+    def keys(cls, attr_name):
+        keys = cls._sorted_keys.get(attr_name)
+        if keys is not None: return keys
+        keys = sorted(cls.map(attr_name).keys())
+        cls._sorted_keys[attr_name] = keys
+        return keys
+    
+    def __getattr__(self, key):
+        return None
+    
+    @property
+    def type(self):
+        # No point in caching, this is very simple already
+        return bpy_types.get(self.type_name)
+    
+    @property
+    def types(self):
+        if "_types" in self.__dict__: return self._types
+        base_type = self.type
+        if not base_type:
+            self._types = ()
+            return self._types
+        self._types = tuple(target_type for target_type in bpy_types.values() if issubclass(target_type, base_type))
+        return self._types
+    
+    @property
+    def data(self):
+        # Note: during addon initialization/registration, bpy.data
+        # returns bpy_restrict_state._RestrictData object instead
+        # of bpy.types.BlendData
+        if "_data" in self.__dict__: return self._data
+        bpy_data = bpy.data
+        if not isinstance(bpy_data, bpy_types["BlendData"]): return None
+        data_name = self.data_name # can be None
+        self._data = (getattr(bpy_data, data_name, None) if data_name else None)
+        return self._data
+
+# https://docs.blender.org/api/current/bpy.types.BlendData.html
+# https://docs.blender.org/api/current/bpy_types_enum_items/id_type_items.html
+# https://docs.blender.org/api/current/bpy_types_enum_items/object_type_items.html
+IDTypes.register(type_name="Action", data_name="actions", id_type='ACTION',
+    label="Action", icon='ACTION')
+IDTypes.register(type_name="Armature", data_name="armatures", id_type='ARMATURE',
+    label="Armature", icon='ARMATURE_DATA', obj_type='ARMATURE')
+IDTypes.register(type_name="Brush", data_name="brushes", id_type='BRUSH',
+    label="Brush", icon='BRUSH_DATA')
+IDTypes.register(type_name="CacheFile", data_name="cache_files", id_type='CACHEFILE',
+    label="Cache File", icon='FILE_CACHE')
+IDTypes.register(type_name="Camera", data_name="cameras", id_type='CAMERA',
+    label="Camera", icon='CAMERA_DATA', obj_type='CAMERA')
+IDTypes.register(type_name="Collection", data_name="collections", id_type='COLLECTION',
+    label="Collection", icon='OUTLINER_COLLECTION')
+IDTypes.register(type_name="Curve", data_name="curves", id_type='CURVE',
+    label="Curve", icon='CURVE_DATA', obj_type='CURVE')
+IDTypes.register(type_name="SurfaceCurve", data_name="curves", id_type='CURVE',
+    label="Surface Curve", icon='SURFACE_DATA', obj_type='SURFACE')
+IDTypes.register(type_name="TextCurve", data_name="curves", id_type='CURVE',
+    label="Text Curve", icon='FONT_DATA', obj_type='FONT')
+IDTypes.register(type_name="Curves", data_name="hair_curves", id_type='CURVES',
+    label="Hair Curves", icon='CURVES_DATA', obj_type='CURVES',)
+IDTypes.register(type_name="VectorFont", data_name="fonts", id_type='FONT',
+    label="Font", icon='FILE_FONT')
+IDTypes.register(type_name="GreasePencil", data_name="grease_pencils", id_type='GREASEPENCIL',
+    label="Grease Pencil", icon='GREASEPENCIL', obj_type='GPENCIL')
+IDTypes.register(type_name="GreasePencilv3", data_name="grease_pencils_v3", id_type='GREASEPENCIL_V3',
+    label="Grease Pencil v3", icon='GREASEPENCIL', obj_type='GREASEPENCIL')
+IDTypes.register(type_name="Image", data_name="images", id_type='IMAGE',
+    label="Image", icon='IMAGE_DATA')
+IDTypes.register(type_name="Key", data_name="shape_keys", id_type='KEY',
+    label="Key", icon='SHAPEKEY_DATA')
+IDTypes.register(type_name="Lattice", data_name="lattices", id_type='LATTICE',
+    label="Lattice", icon='LATTICE_DATA', obj_type='LATTICE')
+IDTypes.register(type_name="Library", data_name="libraries", id_type='LIBRARY',
+    label="Library", icon='LIBRARY_DATA_DIRECT')
+IDTypes.register(type_name="Light", data_name="lights", id_type='LIGHT',
+    label="Light", icon='LIGHT', obj_type='LIGHT')
+IDTypes.register(type_name="LightProbe", data_name="lightprobes", id_type='LIGHT_PROBE',
+    label="Light Probe", icon='OUTLINER_DATA_LIGHTPROBE', obj_type='LIGHT_PROBE')
+IDTypes.register(type_name="FreestyleLineStyle", data_name="linestyles", id_type='LINESTYLE',
+    label="Line Style", icon='LINE_DATA')
+IDTypes.register(type_name="Mask", data_name="masks", id_type='MASK',
+    label="Mask", icon='MOD_MASK')
+IDTypes.register(type_name="Material", data_name="materials", id_type='MATERIAL',
+    label="Material", icon='MATERIAL')
+IDTypes.register(type_name="Mesh", data_name="meshes", id_type='MESH',
+    label="Mesh", icon='MESH_DATA', obj_type='MESH')
+IDTypes.register(type_name="MetaBall", data_name="metaballs", id_type='META',
+    label="Metaball", icon='META_DATA', obj_type='META')
+IDTypes.register(type_name="MovieClip", data_name="movieclips", id_type='MOVIECLIP',
+    label="Movie Clip", icon='FILE_MOVIE')
+IDTypes.register(type_name="NodeTree", data_name="node_groups", id_type='NODETREE',
+    label="Node Tree", icon='NODETREE')
+IDTypes.register(type_name="Object", data_name="objects", id_type='OBJECT',
+    label="Object", icon='OBJECT_DATA')
+IDTypes.register(type_name="PaintCurve", data_name="paint_curves", id_type='PAINTCURVE',
+    label="Paint Curve", icon='CURVE_BEZCURVE')
+IDTypes.register(type_name="Palette", data_name="palettes", id_type='PALETTE',
+    label="Palette", icon='COLOR')
+IDTypes.register(type_name="ParticleSettings", data_name="particles", id_type='PARTICLE',
+    label="Particle", icon='PARTICLES')
+IDTypes.register(type_name="PointCloud", data_name="pointclouds", id_type='POINTCLOUD',
+    label="Point Cloud", icon='POINTCLOUD_DATA', obj_type='POINTCLOUD')
+IDTypes.register(type_name="Scene", data_name="scenes", id_type='SCENE',
+    label="Scene", icon='SCENE_DATA')
+IDTypes.register(type_name="Screen", data_name="screens", id_type='SCREEN',
+    label="Screen", icon='SCREEN_BACK', broken={"idprop":True})
+IDTypes.register(type_name="Sound", data_name="sounds", id_type='SOUND',
+    label="Sound", icon='SOUND')
+IDTypes.register(type_name="Speaker", data_name="speakers", id_type='SPEAKER',
+    label="Speaker", icon='SPEAKER', obj_type='SPEAKER')
+IDTypes.register(type_name="Text", data_name="texts", id_type='TEXT',
+    label="Text", icon='TEXT')
+IDTypes.register(type_name="Texture", data_name="textures", id_type='TEXTURE',
+    label="Texture", icon='TEXTURE')
+IDTypes.register(type_name="Volume", data_name="volumes", id_type='VOLUME',
+    label="Volume", icon='VOLUME_DATA', obj_type='VOLUME')
+IDTypes.register(type_name="WindowManager", data_name="window_managers", id_type='WINDOWMANAGER',
+    label="Window Manager", icon='WINDOW')
+IDTypes.register(type_name="WorkSpace", data_name="workspaces", id_type='WORKSPACE',
+    label="Workspace", icon='WORKSPACE')
+IDTypes.register(type_name="World", data_name="worlds", id_type='WORLD',
+    label="World", icon='WORLD')
+IDTypes.register(label="Empty", icon='EMPTY_DATA', obj_type='EMPTY')
+# IDTypes.validate()
+
+class BpyData:
+    bpy_type_to_data = {}
+    bpy_data_to_type = {}
+    
+    @classmethod
+    def initialize(cls):
+        for info in IDTypes.map("data_name").values():
+            type_name, data_name = info.type_name, info.data_name
+            cls.bpy_type_to_data[type_name] = data_name
+            cls.bpy_data_to_type[data_name] = type_name
+    
+    @classmethod
+    def type_names(cls):
+        if not cls.bpy_type_to_data: cls.initialize()
+        return cls.bpy_type_to_data.keys()
+    
+    @classmethod
+    def data_names(cls):
+        if not cls.bpy_type_to_data: cls.initialize()
+        return cls.bpy_data_to_type.keys()
+    
+    @classmethod
+    def get_type_name(cls, data_name):
+        if not cls.bpy_type_to_data: cls.initialize()
+        return cls.bpy_data_to_type.get(data_name)
+    
+    @classmethod
+    def get_data_name(cls, bpy_type):
+        if not cls.bpy_type_to_data: cls.initialize()
+        if not isinstance(bpy_type, str): bpy_type = bpy_type.bl_rna.identifier
+        return cls.bpy_type_to_data.get(bpy_type)
+    
+    @classmethod
+    def to_data(cls, bpy_type):
+        # Since some version of Blender 2.8 beta, bpy.data is empty
+        # (not populated) during addon loading (maybe Blender bug?)
+        if not cls.bpy_type_to_data: cls.initialize()
+        if not isinstance(bpy_type, str): bpy_type = bpy_type.bl_rna.identifier
+        return getattr(bpy.data, cls.bpy_type_to_data[bpy_type])
 
 #============================================================================#
 
@@ -1702,14 +1828,6 @@ def make_idprops_converters():
     
     return converters
 
-class IDPropIDType:
-    def __init__(self, idname, name, type_name="", icon='NONE', broken=False):
-        self.idname = idname
-        self.name = name
-        self.type = getattr(bpy.types, type_name or name.replace(" ", ""), None)
-        self.icon = icon
-        self.broken = broken
-
 class IDProp:
     type_map = {bool: "bool", int: "int", float: "float", str: "string"}
     typecode_map = {"b": "bool", "i": "int", "f": "float", "d": "float"}
@@ -1739,51 +1857,8 @@ class IDProp:
         ("float", True): {item[0] for item in float_array_subtypes},
     }
     
-    # https://docs.blender.org/api/current/bpy_types_enum_items/id_type_items.html
-    # Used at least in bpy.types.KeyingSetPath.id_type
-    id_types = [
-        IDPropIDType('ACTION', "Action", icon='ACTION'),
-        IDPropIDType('ARMATURE', "Armature", icon='ARMATURE_DATA'),
-        IDPropIDType('BRUSH', "Brush", icon='BRUSH_DATA'),
-        IDPropIDType('CACHEFILE', "Cache File", icon='FILE_CACHE'),
-        IDPropIDType('CAMERA', "Camera", icon='CAMERA_DATA'),
-        IDPropIDType('COLLECTION', "Collection", icon='OUTLINER_COLLECTION'),
-        IDPropIDType('CURVE', "Curve", icon='CURVE_DATA'),
-        IDPropIDType('CURVES', "Curves", icon='CURVES_DATA'),
-        IDPropIDType('FONT', "Font", "VectorFont", icon='FONT_DATA'),
-        IDPropIDType('GREASEPENCIL', "Grease Pencil", icon='GREASEPENCIL'),
-        IDPropIDType('GREASEPENCIL_V3', "Grease Pencil v3", icon='GREASEPENCIL'),
-        IDPropIDType('IMAGE', "Image", icon='IMAGE_DATA'),
-        IDPropIDType('KEY', "Key", icon='SHAPEKEY_DATA'),
-        IDPropIDType('LATTICE', "Lattice", icon='LATTICE_DATA'),
-        IDPropIDType('LIBRARY', "Library", icon='LIBRARY_DATA_DIRECT'),
-        IDPropIDType('LIGHT', "Light", icon='LIGHT'),
-        IDPropIDType('LIGHT_PROBE', "Light Probe", icon='OUTLINER_DATA_LIGHTPROBE'),
-        IDPropIDType('LINESTYLE', "Line Style", "FreestyleLineStyle", icon='LINE_DATA'),
-        IDPropIDType('MASK', "Mask", icon='MOD_MASK'),
-        IDPropIDType('MATERIAL', "Material", icon='MATERIAL'),
-        IDPropIDType('MESH', "Mesh", icon='MESH_DATA'),
-        IDPropIDType('META', "Metaball", "MetaBall", icon='META_DATA'),
-        IDPropIDType('MOVIECLIP', "Movie Clip", icon='FILE_MOVIE'),
-        IDPropIDType('NODETREE', "Node Tree", icon='NODETREE'),
-        IDPropIDType('OBJECT', "Object", icon='OBJECT_DATA'),
-        IDPropIDType('PAINTCURVE', "Paint Curve", icon='CURVE_BEZCURVE'),
-        IDPropIDType('PALETTE', "Palette", icon='COLOR'),
-        IDPropIDType('PARTICLE', "Particle", "ParticleSettings", icon='PARTICLES'),
-        IDPropIDType('POINTCLOUD', "Point Cloud", icon='POINTCLOUD_DATA'),
-        IDPropIDType('SCENE', "Scene", icon='SCENE_DATA'),
-        IDPropIDType('SCREEN', "Screen", icon='SCREEN_BACK', broken=True),
-        IDPropIDType('SOUND', "Sound", icon='SOUND'),
-        IDPropIDType('SPEAKER', "Speaker", icon='SPEAKER'),
-        IDPropIDType('TEXT', "Text", icon='TEXT'),
-        IDPropIDType('TEXTURE', "Texture", icon='TEXTURE'),
-        IDPropIDType('VOLUME', "Volume", icon='VOLUME_DATA'),
-        IDPropIDType('WINDOWMANAGER', "Window Manager", icon='WINDOW'),
-        IDPropIDType('WORKSPACE', "Workspace", icon='WORKSPACE'),
-        IDPropIDType('WORLD', "World", icon='WORLD'),
-    ]
-    id_types_map = {item.idname: item for item in id_types}
-    id_types_broken = {item.type: item for item in id_types if item.broken}
+    id_types = [IDTypes.map("id_type")[id_type] for id_type in IDTypes.keys("id_type")]
+    id_types_broken = {info:bool((info.broken or {}).get("idprop")) for info in IDTypes.all}
     
     converters = make_idprops_converters()
     
@@ -1870,9 +1945,9 @@ class IDProp:
         is_idblock = isinstance(value, bpy.types.ID)
         
         if is_idblock:
-            id_type_info = cls.id_types_broken.get(type(value))
-            if id_type_info:
-                return None, {"description": "", "default": None, "subtype": 'NONE', "id_type": id_type_info.idname}
+            id_type_info = IDTypes.map("type").get(type(value))
+            if id_type_info and cls.id_types_broken.get(id_type_info):
+                return None, {"description": "", "default": None, "subtype": 'NONE', "id_type": id_type_info.id_type}
         
         prop_manager = container.id_properties_ui(key)
         metadata = prop_manager.as_dict()
@@ -1885,7 +1960,7 @@ class IDProp:
                 # may contain base classes, so we have to use isinstance()
                 for id_type_info in cls.id_types:
                     if id_type_info.type and isinstance(value, id_type_info.type):
-                        metadata["id_type"] = id_type_info.idname
+                        metadata["id_type"] = id_type_info.id_type
                         break
         
         metadata.setdefault("description", "") # may not always be present
@@ -1937,8 +2012,8 @@ class IDProp:
                     sanitized[name] = dst_value
                 continue
             elif name == "id_type":
-                id_type_info = cls.id_types_map.get(dst_value)
-                if id_type_info and not id_type_info.broken:
+                id_type_info = IDTypes.map("id_type").get(dst_value)
+                if id_type_info and not cls.id_types_broken.get(id_type_info):
                     sanitized[name] = dst_value
                 continue
             

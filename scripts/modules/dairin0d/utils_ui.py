@@ -16,6 +16,10 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
+import re
+import pickle
+import base64
+
 import bpy
 import blf
 
@@ -24,7 +28,7 @@ from mathutils import Color, Vector, Matrix, Quaternion, Euler
 from .utils_python import DummyObject
 from .bounds import Bounds
 from .utils_gl import TextWrapper
-from .bpy_inspect import BlRna, prop, IDTypes
+from .bpy_inspect import BlRna, prop, IDTypes, BpyEnum
 
 #============================================================================#
 
@@ -114,6 +118,185 @@ def messagebox(text, icon='NONE', width=300, confirm=False, spacing=0.5):
     WM_OT_messagebox.args["spacing"] = spacing
     WM_OT_messagebox.args["confirm"] = confirm
     bpy.ops.wm.messagebox('INVOKE_DEFAULT')
+
+#============================================================================#
+
+# ===== HIERARCHY ENUM ===== #
+if not hasattr(bpy.types, "WM_PT_hierarchy_enum_menu"):
+    class EnumParsingNode:
+        def __init__(self):
+            self.dict = {}
+            self.items = []
+        
+        def get(self, key):
+            node = self.dict.get(key)
+            if not node:
+                node = EnumParsingNode()
+                self.dict[key] = node
+            return node
+    
+    class WM_PT_hierarchy_enum_menu(bpy.types.Panel):
+        bl_label = ""
+        bl_space_type = 'CONSOLE'
+        bl_region_type = 'WINDOW'
+        bl_options = {'DEFAULT_CLOSED', 'INSTANCED'}
+        
+        args_info = {}
+        
+        @classmethod
+        def parse_enum(cls, enum_items, separator, source_id=0, exclude=()):
+            if isinstance(separator, str):
+                splitter = (lambda s: s.split(separator))
+            elif isinstance(separator, re.Pattern):
+                splitter = (lambda s: separator.split(s))
+            elif hasattr(separator, "__iter__"):
+                separator = re.compile("|".join(f"(?:{re.escape(v)})" for v in separator))
+                splitter = (lambda s: separator.split(s))
+            else:
+                splitter = separator
+            
+            root = EnumParsingNode()
+            
+            for item in enum_items:
+                if not item: continue # separator
+                if item.identifier in exclude: continue
+                
+                parts = splitter(item[source_id])
+                idname = item.identifier
+                label = (item.name if source_id != 1 else parts[-1])
+                
+                node = root
+                for part in parts:
+                    node = node.get(part)
+                
+                node.items.append((idname, label))
+            
+            return root
+        
+        @classmethod
+        def encode(cls, data):
+            return base64.b64encode(pickle.dumps(data)).decode("utf-8")
+        
+        @classmethod
+        def decode(cls, value):
+            return pickle.loads(base64.b64decode(value.encode("utf-8")))
+        
+        @classmethod
+        def draw_main(cls, layout, data, property, separator, source_id=0, exclude=(), override={}, **kwargs):
+            # draw_main can only be invoked when the menu sub-items are not displayed
+            args_info = cls.args_info
+            args_info.clear()
+            
+            value = getattr(data, property)
+            label = layout.enum_item_name(data, property, value)
+            icon_value = layout.enum_item_icon(data, property, value)
+            
+            info = (separator, source_id, exclude, override, kwargs.pop("width", None), kwargs.pop("items", None))
+            info_str = cls.encode(info)
+            
+            row = layout.row(align=True)
+            row.context_pointer_set("@data", data)
+            BlUI.set_ui_metadata(row, {"property":property, "info":info_str}) # do this before popover()
+            row.popover("WM_PT_hierarchy_enum_menu", text=label, icon_value=icon_value, translate=False)
+        
+        def draw(self, context):
+            data = getattr(context, "@data", None)
+            if data is None: return
+            
+            metadata = BlUI.get_ui_metadata(context)
+            property = metadata.get("property")
+            if property is None: return
+            
+            args_key = (data, property)
+            
+            # Here we exploit the fact that Blender can only display one branch of menu tree at a time
+            cls = self.__class__
+            args_info = cls.args_info
+            
+            if args_info.get("key") != args_key:
+                args_info.clear()
+                
+                info_str = metadata.get("info")
+                if not info_str: return
+                
+                info = cls.decode(info_str)
+                separator, source_id, exclude, override, width, items_fallback = info
+                
+                # Blender currently does not provide an ability to get dynamically generated
+                # enum items (or the operator's python class) via RNA API, so here's a hack
+                # Note: items_fallback isn't a callback because e.g. local functions can't be pickled
+                if items_fallback is not None:
+                    enum_items = (BpyEnum.normalize_item(item, wrap=True) for item in items_fallback)
+                else:
+                    enum_items = BlRna.enum_items(data, property, container=iter)
+                
+                args_info["key"] = args_key
+                args_info["root"] = cls.parse_enum(enum_items, separator, source_id, exclude)
+                args_info["override"] = override
+                args_info["width"] = width
+            
+            root = args_info["root"]
+            override = args_info["override"]
+            width = args_info["width"]
+            
+            layout = self.layout
+            # layout.emboss = 'NONE_OR_STATUS'
+            layout.emboss = 'PULLDOWN_MENU'
+            
+            col = layout.column(align=True)
+            
+            labels = []
+            
+            def draw_entry(idname, label, sub_metadata):
+                labels.append(label)
+                
+                row = col.row(align=True)
+                row.alignment = 'EXPAND'
+                subrow = row.row(align=False)
+                if idname is None:
+                    subrow.label(text=label)
+                else:
+                    if getattr(data, property) == idname:
+                        subrow.emboss = 'NORMAL'
+                    subrow.prop_enum(data, property, idname, text=label)
+                
+                subrow = row.row(align=True)
+                subrow.alignment = 'RIGHT'
+                subrow.enabled = bool(sub_metadata)
+                if sub_metadata:
+                    BlUI.set_ui_metadata(subrow, sub_metadata) # do this before popover()
+                    subrow.popover("WM_PT_hierarchy_enum_menu", text="", icon='DISCLOSURE_TRI_RIGHT')
+                else:
+                    subrow.label(text="", icon='BLANK1')
+            
+            path = metadata.get("path")
+            path = (cls.decode(path) if path else [])
+            
+            node = root
+            for key in path:
+                node = node.dict[key]
+            
+            for key, subnode in node.dict.items():
+                if subnode.dict:
+                    sub_metadata = {"path": cls.encode(path+[key])}
+                else:
+                    sub_metadata = None
+                
+                if subnode.items:
+                    for idname, label in subnode.items:
+                        draw_entry(idname, label, sub_metadata)
+                else:
+                    draw_entry(None, key, sub_metadata)
+            
+            max_x = 0
+            for label in labels:
+                max_x = max(max_x, TextWrapper.dimensions(label)[0])
+            max_x += BlUI.ICON_SIZE * 2
+            if width and not path: max_x = max(max_x, width)
+            
+            layout.ui_units_x = (max_x / BlUI.ICON_SIZE)
+    
+    bpy.utils.register_class(WM_PT_hierarchy_enum_menu) # REGISTER
 
 #============================================================================#
 
@@ -242,6 +425,9 @@ class NestedLayout:
     
     def prop_enum_filtered(self, data, property, exclude=(), override={}, text_ctxt="", translate=True):
         BlUI.prop_enum_filtered(self, data, property, exclude, override, text_ctxt, translate)
+    
+    def prop_menu_enum_hierarchy(self, data, property, separator, source_id=0, exclude=(), override={}, **kwargs):
+        BlUI.prop_menu_enum_hierarchy(self, data, property, separator, source_id, exclude, override, **kwargs)
     
     def custom_any_ID(self, data, property, type_property, text=None, text_ctxt="", translate=True):
         BlUI.custom_any_ID(self, data, property, type_property, text, text_ctxt, translate)
@@ -530,17 +716,40 @@ class BlUI:
                 y += region.y - area.y
         return (Vector((x, y)) if vector else (int(x), int(y)))
     
-    def set_ui_metadata(layout, metadata, prefix="$"):
-        for key, value in metadata.items():
-            kv = (key if value is None else f"{key}={value}")
-            layout.context_pointer_set(prefix+kv, None)
+    _ui_metadata_counter = 0
     
-    def get_ui_metadata(context, prefix="$"):
+    @classmethod
+    def set_ui_metadata(cls, layout, metadata, prefix="$"):
+        cls._ui_metadata_counter += 1
+        version = f"{cls._ui_metadata_counter:0>16x}" # 16-char 0-padded hex value
+        
+        for key, value in metadata.items():
+            entry = (f"{key}:{version}" if value is None else f"{key}:{version}={value}")
+            layout.context_pointer_set(prefix+entry, None)
+    
+    @classmethod
+    def get_ui_metadata(cls, context, prefix="$"):
+        # Since dir() returns sorted values, we can ensure that only the latest
+        # assigned values are returned by including a version/counter in the key
+        
+        start = len(prefix)
         metadata = {}
         for key in dir(context):
             if not key.startswith(prefix): continue
-            kv = key[len(prefix):].split("=", 1)
-            metadata[kv[0]] = (kv[1] if len(kv) > 1 else None)
+            
+            i = key.find("=", start)
+            if i < 0:
+                value = None
+                key = key[start:]
+            else:
+                value = key[i+1:]
+                key = key[start:i]
+            
+            i = key.rfind(":")
+            if i >= 0: key = key[:i]
+            
+            metadata[key] = value
+        
         return metadata
     
     # Utility UI drawing methods:
@@ -553,11 +762,20 @@ class BlUI:
             override = (lambda identifier: kwargs)
         
         for item in BlRna.enum_items(data, property, container=iter):
+            if item is None:
+                if item not in exclude: layout.separator()
+                continue
+            
             if item.identifier in exclude: continue
+            
             kwargs = override(item.identifier)
             kwargs.setdefault("text_ctxt", text_ctxt)
             kwargs.setdefault("translate", translate)
             layout.prop_enum(data, property, item.identifier, **kwargs)
+    
+    def prop_menu_enum_hierarchy(layout, data, property, separator, source_id=0, exclude=(), override={}, **kwargs):
+        draw_main = bpy.types.WM_PT_hierarchy_enum_menu.draw_main # shared class, so use bpy.types
+        draw_main(layout, data, property, separator, source_id, exclude, override, **kwargs)
     
     # Blender's built-in  prop() / template_ID() / template_any_ID() don't really
     # work for custom generic ID properties, so we have to use a workaround.

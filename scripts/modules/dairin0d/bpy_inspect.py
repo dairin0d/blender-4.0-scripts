@@ -1561,6 +1561,7 @@ class IDTypes:
     _maps = {}
     _sorted_keys = {}
     all = []
+    all_types = {}
     
     @classmethod
     def register(cls, **kwargs):
@@ -1570,7 +1571,11 @@ class IDTypes:
         cls.all.append(info)
     
     @classmethod
-    def validate(cls):
+    def post_register(cls, validate=False):
+        cls.all_types = {subtype.bl_rna.identifier:info for info in IDTypes.all for subtype in info.types}
+        
+        if not validate: return
+        
         registered_types = {t for key in cls.map("types").keys() for t in key}
         all_id_types = {v for v in bpy_types.values() if issubclass(v, bpy.types.ID)}
         print("ID types not present in IDTypes:", all_id_types - registered_types)
@@ -1711,7 +1716,7 @@ IDTypes.register(type_name="WorkSpace", data_name="workspaces", id_type='WORKSPA
 IDTypes.register(type_name="World", data_name="worlds", id_type='WORLD',
     label="World", icon='WORLD')
 IDTypes.register(label="Empty", icon='EMPTY_DATA', obj_type='EMPTY')
-# IDTypes.validate()
+IDTypes.post_register()
 
 class BpyData:
     bpy_type_to_data = {}
@@ -1721,8 +1726,13 @@ class BpyData:
     def initialize(cls):
         for info in IDTypes.map("data_name").values():
             type_name, data_name = info.type_name, info.data_name
+            
             cls.bpy_type_to_data[type_name] = data_name
             cls.bpy_data_to_type[data_name] = type_name
+            
+            for bpy_type in info.types:
+                type_name = bpy_type.bl_rna.identifier
+                cls.bpy_type_to_data[type_name] = data_name
     
     @classmethod
     def type_names(cls):

@@ -1634,6 +1634,92 @@ class BlUtil:
                             target_info = {"id": target_id, "data_path": target.data_path,
                                 "variable": variable, "target": target}
                             yield fcurve_info, target_info
+    
+    class Assets:
+        @staticmethod
+        def get_selection(context=None):
+            if context is None: context = bpy.context
+            
+            space = context.space_data
+            
+            if (space.type == 'FILE_BROWSER') and (space.browse_mode == 'ASSETS'):
+                if hasattr(context, "selected_assets"): # Blender 4+
+                    for asset_representation in context.selected_assets:
+                        file_path = asset_representation.full_library_path
+                        full_path = asset_representation.full_path
+                        
+                        yield dict(
+                            file_path=file_path,
+                            metadata=asset_representation.metadata,
+                            local_id=asset_representation.local_id,
+                            id_type=asset_representation.id_type,
+                            name=asset_representation.name,
+                        )
+                elif hasattr(context, "selected_asset_files"): # Blender 3.6
+                    if context.asset_file_handle:
+                        lib_path = bpy.types.AssetHandle.get_full_library_path(
+                            context.asset_file_handle, asset_library_ref=context.asset_library_ref)
+                        lib_filename = os.path.basename(lib_path)
+                    else:
+                        lib_path = ""
+                        lib_filename = ""
+                    
+                    for file_select_entry in context.selected_asset_files:
+                        rel_path = file_select_entry.relative_path
+                        parts = re.split(r"[\/\\]", rel_path, 1)
+                        if "." in parts[0]: # e.g. some_file.blend
+                            file_path = (lib_path if parts[0] == lib_filename else parts[0])
+                        else:
+                            file_path = bpy.data.filepath
+                        
+                        yield dict(
+                            file_path=file_path,
+                            metadata=file_select_entry.asset_data,
+                            local_id=file_select_entry.local_id,
+                            id_type=file_select_entry.id_type,
+                            name=file_select_entry.name,
+                        )
+            else:
+                if space.type == 'OUTLINER':
+                    idblocks = getattr(context, "selected_ids", None)
+                else:
+                    idblocks = [getattr(context, "id", None)]
+                
+                if not idblocks: return
+                
+                file_path = bpy.data.filepath
+                
+                for idblock in idblocks:
+                    if not idblock: continue
+                    
+                    type_name = type(idblock).bl_rna.identifier
+                    id_type_info = IDTypes.all_types.get(type_name)
+                    if not id_type_info:
+                        print(f"{type_name} not recognized among IDTypes")
+                        continue
+                    
+                    yield dict(
+                        file_path=file_path,
+                        metadata=idblock.asset_data,
+                        local_id=idblock,
+                        id_type=id_type_info.id_type,
+                        name=idblock.name,
+                    )
+        
+        @staticmethod
+        def guess_library_abs_path(filename):
+            if os.path.isabs(filename): return filename
+            
+            file_key = os.path.normcase(filename)
+            
+            for user_asset_lib in bpy.context.preferences.filepaths.asset_libraries:
+                if not os.path.isdir(user_asset_lib.path): continue
+                
+                for root, subdirs, files in os.walk(user_asset_lib.path):
+                    if any(os.path.normcase(file) == file_key for file in files):
+                        return os.path.join(root, filename)
+            
+            return ""
 
 #============================================================================#
 

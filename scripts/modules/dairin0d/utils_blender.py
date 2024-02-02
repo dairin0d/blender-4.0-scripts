@@ -1720,6 +1720,49 @@ class BlUtil:
                         return os.path.join(root, filename)
             
             return ""
+        
+        @staticmethod
+        def matching_library(file_path, context=None):
+            if context is None: context = bpy.context
+            
+            best_path = ""
+            best_config = None
+            
+            file_path = BpyPath.normpath(file_path)
+            
+            for lib_config in context.preferences.filepaths.asset_libraries:
+                lib_path = BpyPath.normpath(lib_config.path)
+                common_path = BpyPath.common_path(file_path, lib_path)
+                
+                if common_path and (len(common_path) > len(best_path)):
+                    best_path = common_path
+                    best_config = lib_config
+            
+            return best_config
+        
+        @staticmethod
+        def get_import_prefs(file_path, context=None):
+            if context is None: context = bpy.context
+            
+            lib_config = BlUtil.Assets.matching_library(file_path, context=context)
+            
+            import_method = 'FOLLOW_PREFS'
+            
+            space_data = context.space_data
+            file_select_params = getattr(space_data, "params", None)
+            
+            if file_select_params is not None:
+                if hasattr(file_select_params, "import_method"): # Blender 4.0+
+                    import_method = file_select_params.import_method
+                elif hasattr(file_select_params, "import_type"): # Blender 3.6
+                    import_method = file_select_params.import_type
+            
+            if import_method == 'FOLLOW_PREFS':
+                import_method = (lib_config.import_method if lib_config else 'APPEND_REUSE')
+            
+            relative = (lib_config.use_relative_path if lib_config else True)
+            
+            return {"method": import_method, "relative": relative}
 
 #============================================================================#
 
@@ -2896,8 +2939,16 @@ class TextureFilenameParser:
 
 class BpyPath:
     @staticmethod
+    def common_path(*paths):
+        try:
+            return os.path.commonpath(paths)
+        except ValueError:
+            return ""
+    
+    @staticmethod
     def normpath(path, *, start=None, library=None):
-        return os.path.normcase(BpyPath.abspath(path, start=start, library=library))
+        path = BpyPath.abspath(path, start=start, library=library)
+        return os.path.normcase(os.path.normpath(path))
     
     @staticmethod
     def normslash(path):

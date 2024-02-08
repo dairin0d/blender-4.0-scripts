@@ -1839,6 +1839,8 @@ def make_idprops_converters():
     return converters
 
 class IDProp:
+    supports_enum = (bpy.app.version >= (4, 1, 0))
+    
     type_map = {bool: "bool", int: "int", float: "float", str: "string"}
     typecode_map = {"b": "bool", "i": "int", "f": "float", "d": "float"}
     
@@ -2011,6 +2013,16 @@ class IDProp:
         
         for name, dst_value in metadata.items():
             if dst_value is None: continue
+            
+            if cls.supports_enum and name == "items":
+                if isinstance(value, int):
+                    dst_value = BpyEnum.normalize_items(dst_value, is_flag=False, separators=False)
+                    if dst_value:
+                        sanitized[name] = dst_value
+                        continue
+                
+                sanitized.pop(name, None)
+                continue
             
             src_value = sanitized.get(name)
             if src_value is None: continue

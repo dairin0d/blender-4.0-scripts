@@ -45,6 +45,7 @@ The addon attempts to provide better usability and customization of basic 3D vie
 
 * **Trackball** toggle - toggles between Trackball and Turntable orbit methods (chages Blender's "Orbit Method" preference)
 * **On/Off** toggle - enables/disables Mouselook Navigation, without disabling the addon itself (this setting is saved in the .blend file, instead of addon preferences)
+  * *Note: if you want this option to be off by default, it can be achieved by saving Blender's startup file with this toggle in the 'off' state*
 
 ## Settings
 

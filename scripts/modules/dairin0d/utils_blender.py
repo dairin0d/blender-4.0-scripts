@@ -1763,6 +1763,60 @@ class BlUtil:
             relative = (lib_config.use_relative_path if lib_config else True)
             
             return {"method": import_method, "relative": relative}
+    
+    class NodeTree:
+        # Emulator classes for Blender < 4.0
+        # Not a full emulator, implement what's currently necessary
+        class Interface:
+            def __init__(self, node_tree):
+                self.items_tree = []
+                
+                InterfaceItem = BlUtil.NodeTree.InterfaceItem
+                
+                for socket_interface in node_tree.inputs:
+                    self.items_tree.append(InterfaceItem(socket_interface, len(self.items_tree)))
+                
+                for socket_interface in node_tree.outputs:
+                    self.items_tree.append(InterfaceItem(socket_interface, len(self.items_tree)))
+        
+        class InterfaceItem:
+            index = property(lambda self: self.__index)
+            item_type = property(lambda self: 'SOCKET')
+            parent = property(lambda self: None)
+            position = property(lambda self: 0)
+            
+            def _wrap_property(prop_name, write=True):
+                def _get(self):
+                    return getattr(self.__item, prop_name)
+                def _set(self, value):
+                    setattr(self.__item, prop_name, value)
+                return (property(_get, _set) if write else property(_get))
+            
+            attribute_domain = _wrap_property("attribute_domain")
+            bl_socket_idname = _wrap_property("bl_socket_idname")
+            default_attribute_name = _wrap_property("default_attribute_name")
+            description = _wrap_property("description")
+            hide_in_modifier = _wrap_property("hide_in_modifier")
+            hide_value = _wrap_property("hide_value")
+            identifier = _wrap_property("identifier", False)
+            name = _wrap_property("name")
+            
+            in_out = property(lambda self: ('OUTPUT' if self.__item.is_output else 'INPUT'))
+            
+            force_non_field = property(lambda self: False)
+            socket_type = property(lambda self: 'DEFAULT')
+            
+            del _wrap_property
+            
+            def __init__(self, socket_interface, index):
+                self.__index = index
+                self.__item = socket_interface
+        
+        @staticmethod
+        def get_interface(node_tree):
+            # NodeTreeInterface was introduced in Blender 4.0
+            if hasattr(node_tree, "interface"): return node_tree.interface
+            return BlUtil.NodeTree.Interface(node_tree)
 
 #============================================================================#
 

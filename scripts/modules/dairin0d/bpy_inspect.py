@@ -1555,7 +1555,31 @@ BlEnums.context_modes_safe = {mode for mode in BlEnums.context_modes if mode in 
 
 #============================================================================#
 
-bpy_types = {name:getattr(bpy.types, name) for name in dir(bpy.types) if inspect.isclass(getattr(bpy.types, name))}
+def scan_bpy_types():
+    # Exceptions may happen due to bugs in Blender
+    for name in dir(bpy.types):
+        try:
+            bpy_type = getattr(bpy.types, name)
+        except Exception as exc:
+            print(f"bpy.types.{name}: getattr(bpy.types, {repr(name)}) failed: {exc}")
+            continue
+        
+        try:
+            rna_type = getattr(bpy_type, "bl_rna", None)
+        except Exception as exc:
+            print(f"bpy.types.{name}: getattr({bpy_type}, 'bl_rna', None) failed: {exc}")
+            rna_type = None
+        
+        try:
+            is_class = inspect.isclass(bpy_type)
+        except Exception as exc:
+            print(f"bpy.types.{name}: inspect.isclass({bpy_type}) failed: {exc}")
+            is_class = None
+        
+        yield (name, bpy_type, rna_type, is_class)
+
+# Use this only for built-in classes
+bpy_types = {name:bpy_type for name, bpy_type, rna_type, is_class in scan_bpy_types() if is_class}
 
 class IDTypes:
     _maps = {}

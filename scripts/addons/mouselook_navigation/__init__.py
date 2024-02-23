@@ -19,7 +19,7 @@
 bl_info = {
     "name": "Mouselook Navigation",
     "author": "dairin0d, moth3r",
-    "version": (1, 8, 2),
+    "version": (1, 8, 3),
     "blender": (3, 6, 0),
     "location": "View3D > orbit/pan/dolly/zoom/fly/walk",
     "description": "Provides extra 3D view navigation options (ZBrush mode) and customizability",
@@ -1301,6 +1301,7 @@ class MouselookNavigation:
         self.sv.distance = self._distance0
         self.sv.focus = self._pos0
         self.sv.is_perspective = self._perspective0
+        self.sync_view_orientation(True)
         self.mode_stack.mode = None # used for setting mouse position
     
     def cleanup(self, context):

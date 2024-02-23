@@ -34,7 +34,7 @@ from mathutils import Vector, Matrix, Quaternion, Euler, Color
 
 from .utils_python import ensure_baseclass, issubclass_safe, add_mixins, AttributeHolder, PrimitiveLock, binary_search, rmtree, os_remove_all
 from .utils_text import compress_whitespace, indent, unindent, split_camelcase
-from .bpy_inspect import BlRna, BpyProp, BpyOp, prop
+from .bpy_inspect import BlRna, BpyProp, BpyOp, prop, scan_bpy_types
 from .utils_ui import messagebox, NestedLayout, BlUI
 from .utils_blender import BpyPath
 
@@ -935,9 +935,7 @@ class AddonManager:
         
         # All registrable types (except PropertyGroup)
         # seem to match this pattern (have bl_idname property)
-        for name in dir(bpy.types):
-            bpy_type = getattr(bpy.types, name)
-            rna = getattr(bpy_type, "bl_rna", None)
+        for name, bpy_type, rna, is_class in scan_bpy_types():
             if rna is None: continue
             if rna.base: continue # this is a derived type
             if "bl_idname" not in rna.properties: continue

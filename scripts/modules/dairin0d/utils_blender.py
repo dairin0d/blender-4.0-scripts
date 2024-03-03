@@ -1574,6 +1574,25 @@ class BlUtil:
             
             return (None if single_file else results)
     
+    class Animation:
+        @staticmethod
+        def auto_options(context=None):
+            if context is None: context = bpy.context
+            
+            edit_prefs = context.preferences.edit
+            tool_settings = context.scene.tool_settings
+            
+            options = set()
+            
+            if edit_prefs.use_keyframe_insert_needed: options.add('INSERTKEY_NEEDED')
+            if edit_prefs.use_visual_keying: options.add('INSERTKEY_VISUAL')
+            if edit_prefs.use_insertkey_xyz_to_rgb: options.add('INSERTKEY_XYZ_TO_RGB')
+            if edit_prefs.use_keyframe_insert_available: options.add('INSERTKEY_AVAILABLE')
+            if tool_settings.auto_keying_mode == 'REPLACE_KEYS': options.add('INSERTKEY_REPLACE')
+            if tool_settings.use_keyframe_cycle_aware: options.add('INSERTKEY_CYCLE_AWARE')
+            
+            return options
+    
     class FCurve:
         @staticmethod
         def find_all():

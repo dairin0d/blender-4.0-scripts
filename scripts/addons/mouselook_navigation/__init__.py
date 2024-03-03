@@ -19,7 +19,7 @@
 bl_info = {
     "name": "Mouselook Navigation",
     "author": "dairin0d, moth3r",
-    "version": (1, 8, 3),
+    "version": (1, 8, 4),
     "blender": (3, 6, 0),
     "location": "View3D > orbit/pan/dolly/zoom/fly/walk",
     "description": "Provides extra 3D view navigation options (ZBrush mode) and customizability",
@@ -709,6 +709,9 @@ class MouselookNavigation:
                 bpy.ops.view3d.select(deselect_all=True)
                 bpy.ops.ed.undo_push(message="Select")
             
+            if self.sv.camera:
+                bpy.ops.ed.undo_push(message="Camera Navigation")
+            
             self.cleanup(context)
             return {'FINISHED'}
         elif cancel:
@@ -1006,6 +1009,7 @@ class MouselookNavigation:
         region = context.region
         v3d = context.space_data
         rv3d = context.region_data
+        tool_settings = context.scene.tool_settings
         
         if event.value == 'RELEASE':
             # 'ANY' is useful for click+doubleclick, but release is not intended
@@ -1026,7 +1030,10 @@ class MouselookNavigation:
         
         self.use_deselect_on_click = self.is_deselect_on_click(event)
         
-        self.sv = SmartView3D(context, use_matrix=True)
+        auto_keyframes = {}
+        if tool_settings.use_keyframe_insert_auto:
+            auto_keyframes = {'LOCATION', 'ROTATION', 'SCALE'}
+        self.sv = SmartView3D(context, use_matrix=True, auto_keyframes=auto_keyframes)
         
         region_pos, region_size = self.sv.region_rect().get("min", "size", convert=Vector)
         clickable_region_pos, clickable_region_size = self.sv.region_rect(False).get("min", "size", convert=Vector)
@@ -1303,6 +1310,10 @@ class MouselookNavigation:
         self.sv.is_perspective = self._perspective0
         self.sync_view_orientation(True)
         self.mode_stack.mode = None # used for setting mouse position
+        
+        if self.sv.camera and self.sv.auto_keyframes:
+            bpy.ops.ed.undo_push(message="Camera Navigation")
+            bpy.ops.ed.undo()
     
     def cleanup(self, context):
         userprefs = context.preferences

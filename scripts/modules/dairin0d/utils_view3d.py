@@ -116,6 +116,9 @@ class SmartView3D:
         # so it's probably worth having it enabled by default
         self.use_matrix = kwargs.get("use_matrix", True)
         self.use_transform_locks = kwargs.get("use_transform_locks", True)
+        self.auto_keyframes = kwargs.get("auto_keyframes") or ()
+        
+        self.auto_keyframes_options = BlUtil.Animation.auto_options(context)
         
         return self
     
@@ -496,6 +499,21 @@ class SmartView3D:
             
             if any(scl_locks):
                 obj.scale = self.__copy_locked(obj.scale, scl, scl_locks)
+        
+        if 'LOCATION' in self.auto_keyframes:
+            obj.keyframe_insert("location", options=self.auto_keyframes_options)
+        
+        if 'ROTATION' in self.auto_keyframes:
+            if obj.rotation_mode == 'QUATERNION':
+                obj.keyframe_insert("rotation_quaternion", options=self.auto_keyframes_options)
+            elif obj.rotation_mode == 'AXIS_ANGLE':
+                obj.keyframe_insert("rotation_axis_angle", options=self.auto_keyframes_options)
+            else:
+                obj.keyframe_insert("rotation_euler", options=self.auto_keyframes_options)
+        
+        # Blender inserts scale keys for other object types, but not for cameras
+        if ('SCALE' in self.auto_keyframes) and (obj.type != 'CAMERA'):
+            obj.keyframe_insert("scale", options=self.auto_keyframes_options)
     
     def __cam_set_matrix(self, m):
         cam = self.space_data.camera

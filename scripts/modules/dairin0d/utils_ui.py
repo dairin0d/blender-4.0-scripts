@@ -636,20 +636,24 @@ class BlUI:
     # areas can't overlap, but regions can
     def ui_contexts_under_coord(x, y, window=None):
         point = int(x), int(y)
+        
         if not window: window = bpy.context.window
+        
         screen = window.screen
         scene = screen.scene
         tool_settings = scene.tool_settings
+        
         for area in screen.areas:
-            if BlUI.point_in_rect(point, area):
-                space_data = area.spaces.active
-                for region in area.regions:
-                    if BlUI.point_in_rect(point, region):
-                        yield dict(window=window, screen=screen,
-                            area=area, space_data=space_data, region=region,
-                            region_data=BlUI.rv3d_from_region(area, region),
-                            scene=scene, tool_settings=tool_settings)
-                break
+            if not BlUI.point_in_rect(point, area): continue
+            
+            space_data = area.spaces.active
+            for region in area.regions:
+                if BlUI.point_in_rect(point, region):
+                    yield dict(window=window, screen=screen,
+                        area=area, space_data=space_data, region=region,
+                        region_data=BlUI.rv3d_from_region(area, region),
+                        scene=scene, tool_settings=tool_settings)
+            break
     
     def ui_context_under_coord(x, y, index=0, window=None):
         ui_context = None
@@ -659,19 +663,29 @@ class BlUI:
     
     def find_ui_area(area_type, region_type='WINDOW', window=None):
         if not window: window = bpy.context.window
+        
+        compare_directly = isinstance(area_type, bpy.types.Area)
+        
         screen = window.screen
         scene = window.scene
         tool_settings = scene.tool_settings
+        
         for area in screen.areas:
-            if area.type == area_type:
-                space_data = area.spaces.active
-                region = None
-                for _region in area.regions:
-                    if _region.type == region_type: region = _region
-                return dict(window=window, screen=screen,
-                    area=area, space_data=space_data, region=region,
-                    region_data=BlUI.rv3d_from_region(area, region),
-                    scene=scene, tool_settings=tool_settings)
+            if compare_directly:
+                if area != area_type: continue
+            else:
+                if area.type != area_type: continue
+            
+            space_data = area.spaces.active
+            region = None
+            
+            for _region in area.regions:
+                if _region.type == region_type: region = _region
+            
+            return dict(window=window, screen=screen,
+                area=area, space_data=space_data, region=region,
+                region_data=BlUI.rv3d_from_region(area, region),
+                scene=scene, tool_settings=tool_settings)
     
     def ui_hierarchy(ui_obj):
         if isinstance(ui_obj, bpy.types.Window):

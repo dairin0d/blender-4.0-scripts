@@ -19,7 +19,7 @@
 bl_info = {
     "name": "Mouselook Navigation",
     "author": "dairin0d, moth3r",
-    "version": (1, 8, 4),
+    "version": (1, 9, 0),
     "blender": (3, 6, 0),
     "location": "View3D > orbit/pan/dolly/zoom/fly/walk",
     "description": "Provides extra 3D view navigation options (ZBrush mode) and customizability",
@@ -189,8 +189,10 @@ class MouselookNavigation_InputSettings:
     keys_fps_back: _keyprop("FPS back")
     keys_fps_left: _keyprop("FPS left")
     keys_fps_right: _keyprop("FPS right")
-    keys_fps_up: _keyprop("FPS up")
-    keys_fps_down: _keyprop("FPS down")
+    keys_fps_up: _keyprop("FPS up (relative)")
+    keys_fps_down: _keyprop("FPS down (relative)")
+    keys_fps_up_abs: _keyprop("FPS up (world)")
+    keys_fps_down_abs: _keyprop("FPS down (world)")
     keys_fps_acceleration: _keyprop("FPS fast")
     keys_fps_slowdown: _keyprop("FPS slow")
     keys_fps_crouch: _keyprop("FPS crouch")
@@ -223,6 +225,8 @@ class MouselookNavigation_InputSettings:
         "keys_fps_right",
         "keys_fps_up",
         "keys_fps_down",
+        "keys_fps_up_abs",
+        "keys_fps_down_abs",
         "keys_fps_acceleration",
         "keys_fps_slowdown",
         "keys_fps_crouch",
@@ -315,8 +319,10 @@ class MouselookNavigation_InputSettings:
                         draw_prop_with_override(self, "keys_fps_back", text="Back", is_key=True)
                         draw_prop_with_override(self, "keys_fps_left", text="Left", is_key=True)
                         draw_prop_with_override(self, "keys_fps_right", text="Right", is_key=True)
-                        draw_prop_with_override(self, "keys_fps_up", text="Up", is_key=True)
-                        draw_prop_with_override(self, "keys_fps_down", text="Down", is_key=True)
+                        draw_prop_with_override(self, "keys_fps_up", text="Up (rel)", is_key=True)
+                        draw_prop_with_override(self, "keys_fps_down", text="Down (rel)", is_key=True)
+                        draw_prop_with_override(self, "keys_fps_up_abs", text="Up (abs)", is_key=True)
+                        draw_prop_with_override(self, "keys_fps_down_abs", text="Down (abs)", is_key=True)
                         draw_prop_with_override(self, "keys_fps_acceleration", text="Faster", is_key=True)
                         draw_prop_with_override(self, "keys_fps_slowdown", text="Slower", is_key=True)
                         draw_prop_with_override(self, "keys_fps_crouch", text="Crouch", is_key=True)
@@ -365,6 +371,8 @@ class MouselookNavigation:
         self.keys_fps_right = self.key_monitor.keychecker(get_value("keys_fps_right"))
         self.keys_fps_up = self.key_monitor.keychecker(get_value("keys_fps_up"))
         self.keys_fps_down = self.key_monitor.keychecker(get_value("keys_fps_down"))
+        self.keys_fps_up_abs = self.key_monitor.keychecker(get_value("keys_fps_up_abs"))
+        self.keys_fps_down_abs = self.key_monitor.keychecker(get_value("keys_fps_down_abs"))
         self.keys_fps_acceleration = self.key_monitor.keychecker(get_value("keys_fps_acceleration"))
         self.keys_fps_slowdown = self.key_monitor.keychecker(get_value("keys_fps_slowdown"))
         self.keys_fps_crouch = self.key_monitor.keychecker(get_value("keys_fps_crouch"))
@@ -520,10 +528,10 @@ class MouselookNavigation:
                 
                 mode = 'ORBIT'
                 
-                move_vector = self.fps_move_vector()
+                move_axes = self.fps_move_vector(semantic=True)
                 
                 if self.mode_stack.mode == 'FPS':
-                    if move_vector.z != 0: # turn off gravity if manual up/down is used
+                    if move_axes.z != 0: # turn off gravity if manual up/down is used
                         use_gravity = False
                         walk_prefs.use_gravity = use_gravity
                     elif self.keys_fps_jump('ON'):
@@ -550,11 +558,11 @@ class MouselookNavigation:
                             self.teleport_pos = raycast_result.location + normal * view_height
                             self.teleport_pos_start = self.sv.viewpoint
                     
-                    if move_vector.magnitude > 0: self.teleport_pos = None
+                    if move_axes.magnitude > 0: self.teleport_pos = None
                 else:
                     use_gravity = False
                     
-                    self.update_fly_speed(wheel_delta, (move_vector.magnitude > 0))
+                    self.update_fly_speed(wheel_delta, (move_axes.magnitude > 0))
                     
                     if self.keys_invoke('ON'):
                         self.fly_speed = Vector()
@@ -798,19 +806,29 @@ class MouselookNavigation:
             fwd_speed = round(fwd_speed) # avoid accumulation errors
             self.fly_speed.y = fwd_speed
     
-    def fps_move_vector(self):
+    def fps_move_vector(self, semantic=False):
         move_forward = self.keys_fps_forward('ON')
         move_back = self.keys_fps_back('ON')
         move_left = self.keys_fps_left('ON')
         move_right = self.keys_fps_right('ON')
         move_up = self.keys_fps_up('ON')
         move_down = self.keys_fps_down('ON')
+        move_up_abs = self.keys_fps_up_abs('ON')
+        move_down_abs = self.keys_fps_down_abs('ON')
         
         move_x = int(move_right) - int(move_left)
         move_y = int(move_forward) - int(move_back)
         move_z = int(move_up) - int(move_down)
+        move_v = int(move_up_abs) - int(move_down_abs)
         
-        return Vector((move_x, move_y, move_z))
+        if semantic: return Vector((abs(move_x), abs(move_y), abs(move_z) + abs(move_v)))
+        
+        matrix = self.sv.rotation.to_matrix().inverted()
+        result = Vector((move_x, move_y, move_z))
+        result += matrix @ Vector((0, 0, move_v))
+        
+        magnitude = result.magnitude
+        return result / (magnitude if magnitude > 1 else 1.0)
     
     def calc_fps_speed(self, walk_speed_factor=5):
         move_vector = self.fps_move_vector()

@@ -193,20 +193,40 @@ def initialize():
             if not ibo: return GPUBatch(type=primitive_type, buf=vbo)
             return GPUBatch(type=primitive_type, buf=vbo, elem=ibo)
         
+        # Note: Blender's gpu read functions return transposed tensors; flatten
+        # them via buffer.dimensions = ... or via np.array(buffer).T.reshape(-1)
+        
+        @staticmethod
+        def read_color(xy, wh, channels=4, slot=0, format='UBYTE'):
+            "Returns a flattened buffer of colors"
+            x, y, w, h = int(xy[0]), int(xy[1]), int(wh[0]), int(wh[1])
+            framebuffer = gpu.state.active_framebuffer_get()
+            data = framebuffer.read_color(x, y, w, h, channels, slot, format)
+            data.dimensions = w * h * channels
+            return data
+        
+        @staticmethod
+        def read_depth(xy, wh):
+            "Returns a flattened buffer of depth values"
+            x, y, w, h = int(xy[0]), int(xy[1]), int(wh[0]), int(wh[1])
+            framebuffer = gpu.state.active_framebuffer_get()
+            data = framebuffer.read_depth(x, y, w, h)
+            data.dimensions = w * h
+            return data
+        
         @staticmethod
         def read_zbuffer(xy, wh=(1, 1), centered=False, src=None):
+            "Returns a (H, W) buffer of depth values"
+            x, y, w, h = int(xy[0]), int(xy[1]), int(wh[0]), int(wh[1])
+            
             if isinstance(wh, (int, float)):
                 wh = (wh, wh)
             elif len(wh) < 2:
                 wh = (wh[0], wh[0])
             
-            x, y, w, h = int(xy[0]), int(xy[1]), int(wh[0]), int(wh[1])
-            
             if centered:
                 x -= w // 2
                 y -= h // 2
-            
-            buf_size = w*h
             
             # Note: xy is in window coordinates
             if src is None:

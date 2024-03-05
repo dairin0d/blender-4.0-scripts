@@ -687,17 +687,24 @@ class SmartView3D:
         self.rotation = m.to_quaternion()
     matrix = property(__get, __set)
     
+    def __get(self):
+        # rv3d.view_matrix takes into account camera mode
+        rv3d = self.region_data
+        return rv3d.view_matrix.copy()
+    matrix_view = property(__get)
+    
+    def __get(self):
+        # rv3d.window_matrix takes into account camera mode
+        rv3d = self.region_data
+        return rv3d.window_matrix.copy()
+    matrix_proj = property(__get)
+    
+    # Note: RegionView3D also has perspective_matrix,
+    # but it's just (window_matrix @ view_matrix)
+    
     # TODO:
-    #matrix_view (origin at near plane)
-    #matrix_projection
-    #matrix_projview
     #fov angles (x, y) ?
     #aperture (x, y) at distance 1
-    # https://unspecified.wordpress.com/2012/06/21/calculating-the-gluperspective-matrix-and-other-opengl-matrix-maths/
-    # http://stackoverflow.com/questions/18404890/how-to-build-perspective-projection-matrix-no-api
-    # http://gamedev.stackexchange.com/questions/71265/why-are-there-different-ways-of-building-projection-matrices
-    # Note: RegionView3D has perspective_matrix, view_matrix, window_matrix
-    # https://docs.blender.org/api/2.80/bpy.types.RegionView3D.html
     
     def __get_axis(self, x, y, z):
         rot = self.rotation

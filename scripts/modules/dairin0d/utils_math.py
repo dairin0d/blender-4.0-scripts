@@ -491,6 +491,10 @@ def matrix_inverted_safe(m):
         return Matrix()
 
 # See source/blender/blenlib/intern/math_geom.c
+# Some additional resources:
+# https://unspecified.wordpress.com/2012/06/21/calculating-the-gluperspective-matrix-and-other-opengl-matrix-maths/
+# http://stackoverflow.com/questions/18404890/how-to-build-perspective-projection-matrix-no-api
+# http://gamedev.stackexchange.com/questions/71265/why-are-there-different-ways-of-building-projection-matrices
 def projection_matrix(left, right, bottom, top, near, far, perspective):
     matrix = Matrix()
     

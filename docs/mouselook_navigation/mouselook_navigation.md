@@ -79,7 +79,7 @@ The addon attempts to provide better usability and customization of basic 3D vie
     * *Disabled* - no geometry detection (in ZBrush mode, ignores navigation attempts in the central area of viewport)
     * *Raycast* - uses raycasting; can detect only mesh objects (*WARNING: causes problems in Sculpt mode*)
     * *Selection* - uses Blender's selection operator (*WARNING: causes problems in Sculpt mode*)
-    * *Z-buffer* - renders the viewport to a depth buffer (*WARNING: triggers a full viewport redraw; may potentially crash Blender, if other addons attempt to use wm.redraw_timer() in the same frame*)
+    * *Z-buffer* - renders the viewport to a depth buffer
   * **Object modes** - in which object modes geometry detection should be used
   * **Radius** - distance (in pixels) to the nearest geometry, above which ZBrush navigation is allowed
 * **Orbit snap** (options for angle snapping during orbiting)
@@ -193,7 +193,6 @@ Warning: if you use Blender versions earlier than 2.93, you may encounter proble
 ## Known issues
 
 * The "Blender" trackball mode doesn't actually behave like in Blender
-* Ortho-grid/quadview-clip/projection-name display is not updated
 * Blender's *Rotate Around Selection* behavior is not exactly replicated in scuplt/paint modes and when editing text-curves
 * Zooming/rotation around the last paint/sculpt stroke position is not supported
 * Panning is not possible when view is locked to 3D cursor (Blender does not provide a way to control this offset)

@@ -2327,7 +2327,7 @@ class ThisAddonPreferences:
         ('NONE', "Disabled", "Don't use geometry detection (in ZBrush mode, ignores navigation attempts in the central area of viewport)"),
         ('RAYCAST', "Raycast", "WARNING: causes problems in Sculpt mode"),
         ('SELECTION', "Selection", "WARNING: causes problems in Sculpt mode"),
-        ('ZBUFFER', "Z-buffer", "WARNING: may potentially crash Blender, if other addons attempt to use wm.redraw_timer() in the same frame"),
+        ('ZBUFFER', "Z-buffer", "Detects geometry from the current 3D view's depth buffer"),
     ])
     
     flips: NavigationDirectionFlip | prop()

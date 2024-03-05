@@ -23,7 +23,7 @@ bl_info = {
     "blender": (3, 6, 0),
     "location": "View3D > orbit/pan/dolly/zoom/fly/walk",
     "description": "Provides extra 3D view navigation options (ZBrush mode) and customizability",
-    "warning": "Beta version",
+    "warning": "",
     "doc_url": "https://github.com/dairin0d/blender-4.0-scripts/blob/master/docs/mouselook_navigation/mouselook_navigation.md",
     "tracker_url": "https://blenderartists.org/t/mouselook-navigation-addon-zbrush-mode/629567/",
     "category": "3D View"
@@ -1271,21 +1271,15 @@ class MouselookNavigation:
         return {'RUNNING_MODAL'}
     
     def depth_cast(self, context, mouse_region, depthcast_radius):
-        result = {}
-        
-        def draw_callback():
-            cast_result = self.sv.depth_cast(mouse_region, depthcast_radius)
-            result["cast_result"] = cast_result
-        
         context = bpy.context
         view3d = context.space_data
+        region = context.region
         scene = context.scene
+        view_layer = context.view_layer
         prefs_system = context.preferences.system
         
-        # Important: if viewport_aa is not OFF, 1-frame artifacts may appear after bpy.ops.wm.redraw_timer()
-        # Also, some users report that there is much less lag when using the Workbench engine
-        
-        # NOTE: engine affects shading type (and possibly other settings),
+        # Note: there seems to be much less lag when using the Workbench engine.
+        # Engine affects shading type (and possibly other settings),
         # so it has to be changed ~last and reverted ~first.
         override_settings = [
             (view3d.overlay, "show_relationship_lines", False),
@@ -1311,14 +1305,20 @@ class MouselookNavigation:
             original_settings.append((target, propname, getattr(target, propname)))
             setattr(target, propname, value)
         
-        handler = addon.draw_handler_add(bpy.types.SpaceView3D, draw_callback, (), 'WINDOW', 'POST_PIXEL')
-        bpy.ops.wm.redraw_timer(type='DRAW', iterations=1)
-        addon.remove(handler)
+        offscreen = gpu.types.GPUOffScreen(region.width, region.height)
+        
+        offscreen.draw_view3d(scene, view_layer, view3d, region,
+            self.sv.matrix_view, self.sv.matrix_proj, do_color_management=False, draw_background=False)
+        
+        with offscreen.bind():
+            result = self.sv.depth_cast(mouse_region, depthcast_radius)
+        
+        offscreen.free()
         
         for (target, propname, value) in reversed(original_settings):
             setattr(target, propname, value)
         
-        return result["cast_result"]
+        return result
     
     def revert_changes(self):
         self.sv.bypass_camera_lock = True

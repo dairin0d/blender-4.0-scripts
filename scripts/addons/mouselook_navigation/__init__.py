@@ -630,9 +630,8 @@ class MouselookNavigation:
                                 self.sv.is_perspective = not is_orbit_snap
                             elif self.rotation_snap_projection_mode == 'ORTHO_ORIGINAL':
                                 self.sv.is_perspective = (False if is_orbit_snap else self._perspective0)
-                            elif is_orbit_snap:
-                                numpad_orientation = self.detect_numpad_orientation(self.sv.rotation)
-                                self.sv.is_perspective = not numpad_orientation
+                            else:
+                                self.sv.is_perspective = not self.detect_numpad_orientation(self.sv.rotation)
                         else:
                             self.sv.is_perspective = self._perspective0
                         
@@ -890,23 +889,25 @@ class MouselookNavigation:
         if use_auto_perspective:
             self.sv.is_perspective = self._perspective0
     
-    numpad_orientations = [
-        ('LEFT', Quaternion((0, 0, -1), math.pi/2.0)),
-        ('RIGHT', Quaternion((0, 0, 1), math.pi/2.0)),
-        ('BOTTOM', Quaternion((1, 0, 0), math.pi/2.0)),
-        ('TOP', Quaternion((-1, 0, 0), math.pi/2.0)),
-        ('FRONT', Quaternion((1, 0, 0, 0))),
-        ('BACK', Quaternion((0, 0, 0, 1))),
-        ('BACK', Quaternion((0, 0, 0, -1))),
-    ]
-    def detect_numpad_orientation(self, q):
-        for name, nq in self.numpad_orientations:
-            if abs(q.rotation_difference(nq).angle) < 1e-6: return name
+    def detect_numpad_orientation(self, q, epsilon=0.0001):
+        angles = Vector(q.to_euler()) / (math.pi * 0.5)
+        return all((abs((a % 1.0) - 0.5) >= 0.5-epsilon) for a in angles)
+    
+    def snap_to_numpad_orientation(self, q):
+        pi_2 = math.pi * 0.5
+        euler = q.to_euler()
+        euler.x = round(euler.x / pi_2) * pi_2
+        euler.y = round(euler.y / pi_2) * pi_2
+        euler.z = round(euler.z / pi_2) * pi_2
+        return euler.to_quaternion()
     
     def sync_view_orientation(self, snap):
-        numpad_orientation = self.detect_numpad_orientation(self.sv.rotation)
-        if numpad_orientation and snap:
-            bpy.ops.view3d.view_axis(type=numpad_orientation, align_active=False)
+        if self.sv.is_camera: return
+        
+        rotation = self.sv.rotation
+        if snap and self.detect_numpad_orientation(rotation):
+            bpy.ops.view3d.view_axis(type='TOP', align_active=False)
+            self.sv.rotation = self.snap_to_numpad_orientation(rotation)
         else:
             bpy.ops.view3d.view_orbit(angle=0.0, type='ORBITUP')
     

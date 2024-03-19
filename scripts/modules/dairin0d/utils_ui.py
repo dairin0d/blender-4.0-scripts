@@ -546,9 +546,10 @@ class BlUI:
     WIN_PADDING = 32
     ICON_SIZE = 20
     
-    def ui_scale():
-        prefs = bpy.context.preferences.system
-        return prefs.dpi * prefs.pixel_size / BlUI.DPI
+    def ui_scale(context=None):
+        if context is None: context = bpy.context
+        prefs = context.preferences.system
+        return prefs.dpi / BlUI.DPI
     
     def region_scale(region=None):
         if region is None: region = bpy.context.region
@@ -558,7 +559,11 @@ class BlUI:
     
     def actual_region_width(region=None):
         if region is None: region = bpy.context.region
-        return region.width - BlUI.PANEL_PADDING
+        return region.width - BlUI.PANEL_PADDING * BlUI.ui_scale()
+    
+    def actual_window_width(window=None):
+        if window is None: window = bpy.context.window
+        return window.width - BlUI.WIN_PADDING * BlUI.ui_scale()
     
     def tag_redraw(arg=None):
         """A utility function to tag redraw of arbitrary UI units."""

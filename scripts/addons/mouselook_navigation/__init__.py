@@ -1281,6 +1281,8 @@ class MouselookNavigation:
         # Note: there seems to be much less lag when using the Workbench engine.
         # Engine affects shading type (and possibly other settings),
         # so it has to be changed ~last and reverted ~first.
+        # Important: if viewport_aa is not OFF, 1-frame artifacts may appear
+        # after bpy.ops.wm.redraw_timer()
         override_settings = [
             (view3d.overlay, "show_relationship_lines", False),
             (view3d.overlay, "show_motion_paths", False),
@@ -1305,20 +1307,37 @@ class MouselookNavigation:
             original_settings.append((target, propname, getattr(target, propname)))
             setattr(target, propname, value)
         
-        offscreen = gpu.types.GPUOffScreen(region.width, region.height)
-        
-        offscreen.draw_view3d(scene, view_layer, view3d, region,
-            self.sv.matrix_view, self.sv.matrix_proj, do_color_management=False, draw_background=False)
-        
-        with offscreen.bind():
-            result = self.sv.depth_cast(mouse_region, depthcast_radius)
-        
-        offscreen.free()
+        if self.should_use_redraw_timer(context):
+            result = [None]
+            def draw_callback():
+                result[0] = self.sv.depth_cast(mouse_region, depthcast_radius)
+            handler = addon.draw_handler_add(bpy.types.SpaceView3D, draw_callback, (), 'WINDOW', 'POST_PIXEL')
+            bpy.ops.wm.redraw_timer(type='DRAW', iterations=1)
+            addon.remove(handler)
+            result = result[0]
+        else:
+            offscreen = gpu.types.GPUOffScreen(region.width, region.height)
+            offscreen.draw_view3d(scene, view_layer, view3d, region,
+                self.sv.matrix_view, self.sv.matrix_proj, do_color_management=False, draw_background=False)
+            with offscreen.bind():
+                result = self.sv.depth_cast(mouse_region, depthcast_radius)
+            offscreen.free()
         
         for (target, propname, value) in reversed(original_settings):
             setattr(target, propname, value)
         
         return result
+    
+    def should_use_redraw_timer(self, context):
+        # For some reason, when a sculpted object has a Multires modifier
+        # at non-zero sculpt level (and Sculpt Base Mesh is off), the mesh
+        # does not render to depth buffer in offscreen.draw_view3d(), but
+        # has no such problem with bpy.ops.wm.redraw_timer().
+        if context.mode != 'SCULPT': return False
+        for md in context.object.modifiers:
+            if md.type != 'MULTIRES': continue
+            if (not md.use_sculpt_base_mesh) and (md.sculpt_levels > 0): return True
+        return False
     
     def revert_changes(self):
         self.sv.bypass_camera_lock = True

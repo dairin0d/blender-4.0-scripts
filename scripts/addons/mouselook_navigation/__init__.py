@@ -19,7 +19,7 @@
 bl_info = {
     "name": "Mouselook Navigation",
     "author": "dairin0d, moth3r",
-    "version": (1, 9, 0),
+    "version": (1, 9, 1),
     "blender": (3, 6, 0),
     "location": "View3D > orbit/pan/dolly/zoom/fly/walk",
     "description": "Provides extra 3D view navigation options (ZBrush mode) and customizability",
@@ -716,7 +716,7 @@ class MouselookNavigation:
                 bpy.ops.view3d.select(deselect_all=True)
                 bpy.ops.ed.undo_push(message="Select")
             
-            if self.sv.camera:
+            if self.sv.is_camera:
                 bpy.ops.ed.undo_push(message="Camera Navigation")
             
             self.cleanup(context)

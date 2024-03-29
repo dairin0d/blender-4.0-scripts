@@ -19,7 +19,7 @@
 bl_info = {
     "name": "Mouselook Navigation",
     "author": "dairin0d, moth3r",
-    "version": (1, 9, 1),
+    "version": (1, 9, 2),
     "blender": (3, 6, 0),
     "location": "View3D > orbit/pan/dolly/zoom/fly/walk",
     "description": "Provides extra 3D view navigation options (ZBrush mode) and customizability",
@@ -1333,11 +1333,9 @@ class MouselookNavigation:
         # at non-zero sculpt level (and Sculpt Base Mesh is off), the mesh
         # does not render to depth buffer in offscreen.draw_view3d(), but
         # has no such problem with bpy.ops.wm.redraw_timer().
-        if context.mode != 'SCULPT': return False
-        for md in context.object.modifiers:
-            if md.type != 'MULTIRES': continue
-            if (not md.use_sculpt_base_mesh) and (md.sculpt_levels > 0): return True
-        return False
+        # UPDATE: it seems that offscreen.draw_view3d() has problems in
+        # sculpt mode in general, e.g. uses outdated mesh shape
+        return context.mode == 'SCULPT'
     
     def revert_changes(self):
         self.sv.bypass_camera_lock = True

@@ -1143,8 +1143,13 @@ class BlUtil:
     class Depsgraph:
         @staticmethod
         def trigger_update():
-            for window in bpy.context.window_manager.windows:
-                window.scene.cursor.location = Vector(window.scene.cursor.location)
+            try:
+                for window in bpy.context.window_manager.windows:
+                    window.scene.cursor.location = Vector(window.scene.cursor.location)
+                return True
+            except Exception:
+                # modifying the ID data is not allowed in some contexts
+                return False
         
         @staticmethod
         def evaluated_vertices(depsgraph, objs=None, matrix=None, origins='NON_GEOMETRY'):

@@ -24,8 +24,8 @@ bl_info = {
     "location": "View3D > orbit/pan/dolly/zoom/fly/walk",
     "description": "Provides extra 3D view navigation options (ZBrush mode) and customizability",
     "warning": "",
-    "doc_url": "https://github.com/dairin0d/blender-4.0-scripts/blob/master/docs/mouselook_navigation/mouselook_navigation.md",
-    "tracker_url": "https://blenderartists.org/t/mouselook-navigation-addon-zbrush-mode/629567/",
+    "doc_url": "https://docs.moth3r.com",
+    "tracker_url": "https://blenderartists.org/t/mouselook-navigation-addon-zbrush-mode",
     "category": "3D View"
 }
 

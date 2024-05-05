@@ -24,8 +24,8 @@ bl_info = {
     "location": "3D View",
     "description": "Advanced cut/copy/paste for objects and elements",
     "warning": "",
-    "doc_url": "https://github.com/dairin0d/blender-4.0-scripts/blob/master/docs/cut_copy_paste/cut_copy_paste.md",
-    "tracker_url": "https://blenderartists.org/t/cut-copy-paste-objects-and-elements/540152",
+    "doc_url": "https://docs.moth3r.com",
+    "tracker_url": "https://blenderartists.org/t/cut-copy-paste-objects-and-elements",
     "category": "3D View",
 }
 

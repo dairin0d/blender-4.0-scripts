@@ -2402,8 +2402,8 @@ class ThisAddonPreferences:
         with layout.row():
             with layout.column():
                 layout.label(text="Official:")
-                layout.operator("wm.url_open", text="BATCH TOOLS™ 2 Store").url = "https://www.moth3r.com"
-                layout.operator("wm.url_open", text="Documentation").url = "http://gum.co/mouselook"
+                layout.operator("wm.url_open", text="MOTH3R® Store").url = "store.moth3r.com"
+                layout.operator("wm.url_open", text="MOTH3R® Docs").url = "docs.moth3r.com"
             with layout.column():
                 layout.label(text="Recommended:")
                 layout.operator("wm.url_open", text="MasterXeon1001 addons").url = "https://gumroad.com/masterxeon1001"

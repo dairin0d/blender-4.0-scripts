@@ -775,16 +775,18 @@ class AddonManager:
         for cls in gizmo_groups:
             try:
                 bpy.utils.unregister_class(cls)
-            except RuntimeError:
-                print(f"addon {self.name}: could not unregister {cls}")
+            except RuntimeError as exc:
+                print(f"addon {self.name}: could not unregister gizmo group {cls}\n", exc)
         
-        @self.timer(persistent=False)
+        # Important: we HAVE to use persistent=True in order for this to work
+        # when a .blend file is opened by association from a file manager
+        @self.timer(persistent=True)
         def re_register_gizmos():
             for cls in gizmo_groups:
                 try:
                     bpy.utils.register_class(cls)
-                except RuntimeError:
-                    print(f"addon {self.name}: could not unregister {cls}")
+                except RuntimeError as exc:
+                    print(f"addon {self.name}: could not register gizmo group {cls}\n", exc)
     
     def register_keymaps(self):
         for callback in self._keymap_registrators:

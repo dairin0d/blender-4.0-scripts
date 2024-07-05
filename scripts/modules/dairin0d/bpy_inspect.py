@@ -96,6 +96,10 @@ class BlRna:
             return False
     
     @staticmethod
+    def iter_valid(iterable):
+        return (item for item in iterable if BlRna.is_valid(item))
+    
+    @staticmethod
     def parent(obj, n=-1, coerce=True):
         path_parts = obj.path_from_id().split(".")
         if len(path_parts) <= 1: return obj.id_data

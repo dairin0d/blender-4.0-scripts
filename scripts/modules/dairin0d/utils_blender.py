@@ -884,12 +884,12 @@ class BlUtil:
                 if action == 'TOGGLE': action = ('DESELECT' if context.selected_objects else 'SELECT')
                 
                 if action == 'INVERT':
-                    for obj in view_layer.objects:
+                    for obj in BlRna.iter_valid(view_layer.objects):
                         value = not obj.select_get(view_layer=view_layer)
                         obj.select_set(value, view_layer=view_layer)
                 else:
                     value = (action == 'SELECT')
-                    for obj in view_layer.objects:
+                    for obj in BlRna.iter_valid(view_layer.objects):
                         obj.select_set(value, view_layer=view_layer)
         
         @staticmethod
@@ -913,7 +913,7 @@ class BlUtil:
             if objs is None: objs = ()
             elif isinstance(objs, bpy.types.Object): objs = [objs]
             
-            layer_objs = set(view_layer.objects)
+            layer_objs = set(BlRna.iter_valid(view_layer.objects))
             objs = [obj for obj in objs if obj in layer_objs]
             
             if mode in ('DESELECT', 'MUTE', 'INVERSE'):

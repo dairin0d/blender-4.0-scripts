@@ -1,0 +1,19 @@
+schema_version = "1.0.0"
+id = "cut_copy_paste"
+version = "2.1.1"
+name = "Cut / Copy / Paste"
+tagline = "Advanced cut/copy/paste for objects and elements"
+maintainer = "dairin0d, moth3r"
+type = "add-on"
+
+
+# Optional link to documentation, support, source files, etc
+website = "https://docs.moth3r.com"
+
+
+tags = ["Object", "Mesh", "3D View"]
+blender_version_min = "4.2.0"
+
+license = [
+  "SPDX:GPL-2.0-or-later",
+]

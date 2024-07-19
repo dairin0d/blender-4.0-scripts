@@ -144,6 +144,13 @@ class AddonManager:
         module_locals = None
         module_name = None
         
+        def get_module_name(module_globals):
+            module_name = module_globals.get("__name__", "")
+            # In Blender 4.2, addon module naming has changed
+            if not module_name.startswith("bl_ext."):
+                module_name = module_name.split(".")[0] # before Blender 4.2
+            return module_name
+        
         for frame_record in reversed(inspect.stack()):
             # Frame record is a tuple of 6 elements:
             # (frame_obj, filename, line_id, func_name, context_lines, context_line_id)
@@ -152,7 +159,7 @@ class AddonManager:
             if not module_name:
                 module_globals = frame.f_globals
                 module_locals = frame.f_locals
-                module_name = module_globals.get("__name__", "").split(".")[0]
+                module_name = get_module_name(module_globals)
                 _path = module_globals.get("__file__", "")
                 _name = os.path.splitext(os.path.basename(_path))[0]
             
@@ -160,7 +167,7 @@ class AddonManager:
             if info:
                 module_globals = frame.f_globals
                 module_locals = frame.f_locals
-                module_name = module_globals.get("__name__", "").split(".")[0]
+                module_name = get_module_name(module_globals)
                 _path = module_globals.get("__file__", "")
                 _name = info.get("name", _name)
                 break

@@ -70,6 +70,7 @@ class AddonManager:
         self.path = info["path"] # directory of the main file
         self.main_file = info["main_file"] # file path of the main module
         self.module_name = info["module_name"]
+        self.module_id = info["module_id"]
         self.is_textblock = info["is_textblock"]
         self.storage_path = info["config_path"]
         
@@ -206,8 +207,15 @@ class AddonManager:
         
         config_path = os.path.join(config_path, config)
         
+        # In Blender 4.2, module name used to get the preferences
+        # typically starts with bl_ext.user_default.
+        # If we want to e.g. register operators starting with
+        # addon's actual name as the category, we need to take
+        # the last part (also because category can't contain dots).
+        module_id = module_name.split(".")[-1]
+        
         return dict(name=name, path=path, main_file=_path, config_path=config_path,
-                    module_name=module_name, is_textblock=is_textblock,
+                    module_name=module_name, module_id=module_id, is_textblock=is_textblock,
                     module_locals=module_locals, module_globals=module_globals)
     #========================================================================#
     
@@ -1192,7 +1200,7 @@ class AddonManager:
             show_edit = ('EDIT' in options)
             has_apply = hasattr(preset_cls, "apply")
             
-            op_prefix = f"{self.module_name.lower()}.{preset_cls.__name__.lower()}"
+            op_prefix = f"{self.module_id.lower()}.{preset_cls.__name__.lower()}"
             preset_cls.op_prefix = op_prefix
             
             OpEditMixin = getattr(preset_cls, "OpEditMixin", None)

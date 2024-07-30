@@ -19,7 +19,7 @@
 bl_info = {
     "name": "Mouselook Navigation",
     "author": "dairin0d, moth3r",
-    "version": (1, 9, 2),
+    "version": (1, 9, 3),
     "blender": (3, 6, 0),
     "location": "View3D > orbit/pan/dolly/zoom/fly/walk",
     "description": "Provides extra 3D view navigation options (ZBrush mode) and customizability",
@@ -907,6 +907,16 @@ class MouselookNavigation:
         if use_auto_perspective:
             self.sv.is_perspective = self._perspective0
     
+    # These were noted down empirically
+    numpad_orientations = {
+        (0, 0, -1): 'LEFT',
+        (0, 0, 1): 'RIGHT',
+        (1, 0, 0): 'BOTTOM',
+        (-1, 0, 0): 'TOP',
+        (0, 0, 0): 'FRONT',
+        (0, 0, 2): 'BACK',
+    }
+    
     def detect_numpad_orientation(self, q, epsilon=0.0001):
         angles = Vector(q.to_euler()) / (math.pi * 0.5)
         return all((abs((a % 1.0) - 0.5) >= 0.5-epsilon) for a in angles)
@@ -924,8 +934,18 @@ class MouselookNavigation:
         
         rotation = self.sv.rotation
         if snap and self.detect_numpad_orientation(rotation):
-            bpy.ops.view3d.view_axis(type='TOP', align_active=False)
-            self.sv.rotation = self.snap_to_numpad_orientation(rotation)
+            # Use predefined orientations if we found a match,
+            # but Blender actually supports more orientations
+            # than in the enum. However, for some reason, some
+            # orientations don't show the grid if post-rotated
+            angles = Vector(rotation.to_euler())
+            angles_snapped = tuple(round(v) for v in angles / (math.pi * 0.5))
+            numpad_orientation = self.numpad_orientations.get(angles_snapped, None)
+            if numpad_orientation:
+                bpy.ops.view3d.view_axis(type=numpad_orientation, align_active=False)
+            else:
+                bpy.ops.view3d.view_axis(type='TOP', align_active=False)
+                self.sv.rotation = self.snap_to_numpad_orientation(rotation)
         else:
             bpy.ops.view3d.view_orbit(angle=0.0, type='ORBITUP')
     

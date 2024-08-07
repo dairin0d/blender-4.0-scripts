@@ -138,7 +138,8 @@ class AddonManager:
     # If this is a textblock, its module will be topmost
     # and will have __name__ == "__main__".
     # If this is an addon in the scripts directory, it will
-    # be recognized by blender only if it contains bl_info.
+    # be recognized by blender only if it contains bl_info
+    # (< 4.2.0) or has toml manifest (>= 4.2.0)
     @classmethod
     def __init_info(cls, name, path, config, varname):
         module_globals = None
@@ -150,21 +151,27 @@ class AddonManager:
             # (frame_obj, filename, line_id, func_name, context_lines, context_line_id)
             frame = frame_record[0]
             
-            if not module_name:
-                module_globals = frame.f_globals
-                module_locals = frame.f_locals
-                module_name = module_globals.get("__package__", "")
-                _path = module_globals.get("__file__", "")
-                _name = os.path.splitext(os.path.basename(_path))[0]
+            if bpy.app.version >= (4, 2, 0):
+                module_path = frame.f_globals.get("__file__", "")
+                toml_path = os.path.join(os.path.dirname(module_path), "blender_manifest.toml")
+                toml_path = os.path.normcase(toml_path)
+                info = cls.__parse_toml(toml_path)
+            else:
+                info = frame.f_globals.get("bl_info")
             
-            info = frame.f_globals.get("bl_info")
-            if info:
+            if (not module_name) or info:
+                if info:
+                    _name = info.get("name", _name)
+                else:
+                    _name = frame.f_globals.get("__file__", "")
+                    _name = os.path.splitext(os.path.basename(_name))[0]
+                
                 module_globals = frame.f_globals
                 module_locals = frame.f_locals
                 module_name = module_globals.get("__package__", "")
                 _path = module_globals.get("__file__", "")
-                _name = info.get("name", _name)
-                break
+                
+                if info: break
         
         if varname in module_globals:
             addon = module_globals[varname]
@@ -210,6 +217,31 @@ class AddonManager:
         return dict(name=name, path=path, main_file=_path, config_path=config_path,
                     module_name=module_name, module_id=module_id, is_textblock=is_textblock,
                     module_locals=module_locals, module_globals=module_globals)
+    
+    @classmethod
+    def __parse_toml(cls, path):
+        if not os.path.isfile(path): return None
+        
+        try:
+            with open(path, 'r') as file:
+                content = file.read()
+        except Exception as exc:
+            print("Could not read .toml file:", exc)
+            return None
+        
+        parsed_code = ast.parse(content, mode='exec')
+        
+        config = {}
+        
+        for node in parsed_code.body:
+            if not isinstance(node, ast.Assign): continue
+            for target in node.targets:
+                if not isinstance(target, ast.Name): continue
+                var_name = target.id
+                value = ast.literal_eval(node.value)
+                config[var_name] = value
+        
+        return config
     #========================================================================#
     
     # ===== PREFERENCES / EXTERNAL / INTERNAL ===== #

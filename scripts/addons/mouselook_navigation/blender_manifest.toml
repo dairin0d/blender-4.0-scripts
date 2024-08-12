@@ -1,6 +1,6 @@
 schema_version = "1.0.0"
 id = "mouselook_navigation"
-version = "1.9.2"
+version = "1.9.3"
 name = "Mouselook Navigation"
 tagline = "Provides extra 3D view navigation options (ZBrush mode) and customizability"
 maintainer = "dairin0d, moth3r"

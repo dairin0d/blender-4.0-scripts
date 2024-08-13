@@ -1315,6 +1315,9 @@ class AddonManager:
                     return wm.invoke_props_dialog(self, width=200)
             
             def draw_selector(layout, context):
+                ui_units_x = getattr(preset_cls, "popup_units_x", 0)
+                if ui_units_x > 0: layout.ui_units_x = int(ui_units_x)
+                
                 layout.operator_context = 'INVOKE_DEFAULT' # to be able to invoke operators from popup
                 
                 # Copy "metadata" from the parent context

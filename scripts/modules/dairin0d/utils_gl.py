@@ -73,6 +73,16 @@ def initialize():
     blf_draw = blf.draw
     blf_word_wrap = blf.word_wrap
     
+    def detect_data_type(buffer):
+        try:
+            while True:
+                value = buffer
+                buffer = buffer[0]
+        except (TypeError, IndexError):
+            pass
+        is_float = isinstance(value, float) or np.issubdtype(type(value), np.floating)
+        return ('FLOAT' if is_float else 'INT')
+    
     def calc_vbo_len(datas):
         vbo_len = -1
         for data in datas:
@@ -85,13 +95,47 @@ def initialize():
     
     vbo_format_cache = {}
     
-    def to_vbo_format(vbo_format):
+    def recommended_comp_type(attr_type):
+        if attr_type in {'FLOAT', 'VEC2', 'VEC3', 'VEC4', 'MAT3', 'MAT4'}:
+            return 'F32'
+        elif attr_type in {'UINT', 'UVEC2', 'UVEC3', 'UVEC4'}:
+            return 'U32'
+        else: # attr_type in {'INT', 'IVEC2', 'IVEC3', 'IVEC4', 'BOOL'}
+            return 'I32'
+    
+    def recommended_attr_len(attr_data, attr_name):
+        attr_len = 1
+        try:
+            item = attr_data[attr_name][0]
+            while True:
+                attr_len *= len(item)
+                item = item[0]
+        except (TypeError, IndexError):
+            pass
+        return attr_len
+    
+    def recommended_fetch_mode(comp_type):
+        return ('FLOAT' if comp_type == 'F32' else 'INT')
+    
+    def shader_format_calc(shader, attr_data):
+        # Blender's batch_for_shader() utility method uses
+        # custom logic instead of just shader.format_calc()
+        vbo_format = GPUVertFormat()
+        attrs_info = shader.attrs_info_get()
+        for name, attr_type in attrs_info:
+            comp_type = recommended_comp_type(attr_type)
+            attr_len = recommended_attr_len(attr_data, name)
+            fetch_mode = recommended_fetch_mode(comp_type)
+            vbo_format.attr_add(id=name, comp_type=comp_type, len=attr_len, fetch_mode=fetch_mode)
+        return vbo_format
+    
+    def to_vbo_format(vbo_format, attr_data):
         if isinstance(vbo_format, GPUVertFormat): return vbo_format
         key = vbo_format
         vbo_format = vbo_format_cache.get(key, None)
         if vbo_format: return vbo_format
         shader = (shader_from_builtin(key) if isinstance(key, str) else key)
-        vbo_format = shader.format_calc()
+        vbo_format = shader_format_calc(shader, attr_data)
         vbo_format_cache[key] = vbo_format
         vbo_format_cache[shader] = vbo_format
         return vbo_format
@@ -107,7 +151,7 @@ def initialize():
         
         result.append((result[-1][-1], result[0][0]))
         
-        return GPUIndexBuf(type='LINES', seq=result)
+        return GPUIndexBuf(type='LINES', seq=result), 'LINES'
     
     def convert_tri_fan(indices):
         result = [[]]
@@ -118,7 +162,7 @@ def initialize():
             else:
                 result[0].append(i)
         
-        return GPUIndexBuf(type='TRIS', seq=result)
+        return GPUIndexBuf(type='TRIS', seq=result), 'TRIS'
     
     # Since Blender 3.2, LINE_LOOP and TRI_FAN are deprecated
     # (they are not supported in Vulkan / Metal)
@@ -134,9 +178,9 @@ def initialize():
             if indices: return remapper(indices)
             return cache.get(vbo_len, None) or cache.setdefault(vbo_len, remapper(range(vbo_len)))
         elif indices:
-            return GPUIndexBuf(type=primitive_type, seq=indices)
+            return GPUIndexBuf(type=primitive_type, seq=indices), primitive_type
         else:
-            return None
+            return None, primitive_type
     
     class StateRestorator:
         __slots__ = ("state", "target")
@@ -180,14 +224,14 @@ def initialize():
             
             vbo_len = calc_vbo_len(attr_data.values())
             
-            vbo_format = to_vbo_format(args[0])
-            vbo = GPUVertBuf(vbo_format, vbo_len)
+            vbo_format = to_vbo_format(args[0], attr_data)
+            vbo = GPUVertBuf(format=vbo_format, len=vbo_len)
             for id, data in attr_data.items():
-                vbo.attr_fill(id, data)
+                vbo.attr_fill(id=id, data=data)
             
             primitive_type = args[1]
             indices = (args[2] if arg_count > 2 else None)
-            ibo = to_index_buffer(primitive_type, indices, vbo_len)
+            ibo, primitive_type = to_index_buffer(primitive_type, indices, vbo_len)
             
             # Blender expects the elem argument to be an actual buffer, if provided
             if not ibo: return GPUBatch(type=primitive_type, buf=vbo)
@@ -254,7 +298,33 @@ def initialize():
             # For now, only FLOAT buffers are supported (maybe this would change in the future)
             buffer = gpu.types.Buffer('FLOAT', pixels.shape, pixels)
             return gpu.types.GPUTexture(size, data=buffer)
-
+        
+        @classmethod
+        def rgba_texture(cls, size, buffer):
+            if detect_data_type(buffer) == 'INT':
+                return cls.rgba8_texture(size, buffer)
+            
+            return gpu.types.GPUTexture(size, data=buffer)
+        
+        @classmethod
+        def rgba8_to_buffer(cls, size, pixels):
+            buffer = gpu.types.Buffer('INT', size[0]*size[1], pixels)
+            
+            # For some reason, on MacOS buffer may contain the same values, but as floats
+            # (perhaps MacOS version of blender only supports float buffers?)
+            if isinstance(buffer[0], float):
+                # This is much faster than using preview.image_pixels_float
+                pixels = np.array(pixels, dtype='int32', order='C').view("uint8")
+                pixels = np.array(pixels / 255.0, dtype='float32', order='C')
+                pixels.shape = (size[1], size[0], 4)
+                buffer = gpu.types.Buffer('FLOAT', pixels.shape, pixels)
+            
+            return buffer
+        
+        @classmethod
+        def preview_to_buffer(cls, preview):
+            return cls.rgba8_to_buffer(preview.image_size, preview.image_pixels[:])
+    
     cgl = CGL()
     
     # ========== TEXT ========== #

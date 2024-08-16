@@ -1327,6 +1327,10 @@ class MouselookNavigation:
             original_settings.append((target, propname, getattr(target, propname)))
             setattr(target, propname, value)
         
+        # In Blender 4.2, depth cast does not work in Sculpt mode when overlays are disabled
+        show_overlays = view3d.overlay.show_overlays
+        view3d.overlay.show_overlays = True
+        
         if self.should_use_redraw_timer(context):
             result = [None]
             def draw_callback():
@@ -1342,6 +1346,8 @@ class MouselookNavigation:
             with offscreen.bind():
                 result = self.sv.depth_cast(mouse_region, depthcast_radius)
             offscreen.free()
+        
+        view3d.overlay.show_overlays = show_overlays
         
         for (target, propname, value) in reversed(original_settings):
             setattr(target, propname, value)

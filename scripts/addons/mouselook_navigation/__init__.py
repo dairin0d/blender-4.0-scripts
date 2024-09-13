@@ -1312,7 +1312,9 @@ class MouselookNavigation:
             (view3d.shading, "show_shadows", False),
             (view3d.shading, "show_cavity", False),
             (view3d.shading, "use_dof", False),
-            (scene.render, "engine", 'BLENDER_WORKBENCH'),
+            # Disabled switching-engine-unconditionally due to
+            # reported flicker, but not sure if it's problem-free
+            # (scene.render, "engine", 'BLENDER_WORKBENCH'),
             (scene.display, "viewport_aa", 'OFF'),
             (prefs_system, "viewport_aa", 'OFF'),
         ]
@@ -1320,6 +1322,10 @@ class MouselookNavigation:
         # Switching shading types in non-Workbench engine (especially in Sculpt mode)
         # is costly, so do it only if absolutely necessary and only while in Workbench
         if view3d.shading.type == 'WIREFRAME':
+            # Switching engines in non-eevee mode causes 1-frame flicker
+            # (this is especially noticeable when having multiple 3D views)
+            if scene.render.engine == 'BLENDER_EEVEE':
+                override_settings.append((scene.render, "engine", 'BLENDER_WORKBENCH'))
             override_settings.append((view3d.shading, "type", 'SOLID'))
         
         original_settings = []

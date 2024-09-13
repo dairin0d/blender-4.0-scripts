@@ -1,6 +1,6 @@
 schema_version = "1.0.0"
 id = "cut_copy_paste"
-version = "2.1.1"
+version = "2.1.2"
 name = "Cut / Copy / Paste"
 tagline = "Advanced cut/copy/paste for objects and elements"
 maintainer = "dairin0d, moth3r"

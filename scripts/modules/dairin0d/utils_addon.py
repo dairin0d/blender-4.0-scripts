@@ -146,18 +146,25 @@ class AddonManager:
         module_locals = None
         module_name = None
         
+        info = None
+        _name = ""
+        _path = ""
+        
         for frame_record in reversed(inspect.stack()):
             # Frame record is a tuple of 6 elements:
             # (frame_obj, filename, line_id, func_name, context_lines, context_line_id)
             frame = frame_record[0]
             
-            if bpy.app.version >= (4, 2, 0):
-                module_path = frame.f_globals.get("__file__", "")
-                toml_path = os.path.join(os.path.dirname(module_path), "blender_manifest.toml")
-                toml_path = os.path.normcase(toml_path)
-                info = cls.__parse_toml(toml_path)
-            else:
-                info = frame.f_globals.get("bl_info")
+            # Meta-addons (e.g. CleanPanels) can insert themselves into the loading logic,
+            # so we need to make sure that we take info only from our modules
+            if frame.f_locals.get("dairin0d"):
+                if bpy.app.version >= (4, 2, 0):
+                    module_path = frame.f_globals.get("__file__", "")
+                    toml_path = os.path.join(os.path.dirname(module_path), "blender_manifest.toml")
+                    toml_path = os.path.normcase(toml_path)
+                    info = cls.__parse_toml(toml_path)
+                else:
+                    info = frame.f_globals.get("bl_info")
             
             if (not module_name) or info:
                 if info:

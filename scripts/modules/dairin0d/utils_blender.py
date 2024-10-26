@@ -1165,7 +1165,7 @@ class BlUtil:
             
             if origins and (origins != 'NONE'):
                 # Any object types that can have geometry or sub-elements
-                geometry_types = {'MESH', 'CURVE', 'SURFACE', 'CURVES', 'FONT', 'META', 'GPENCIL', 'LATTICE', 'ARMATURE'}
+                geometry_types = {'MESH', 'CURVE', 'SURFACE', 'CURVES', 'FONT', 'META', 'GPENCIL', 'GREASEPENCIL', 'LATTICE', 'ARMATURE'}
                 
                 def add_obj(obj, result):
                     if (origins == 'NON_GEOMETRY') and (obj.type not in geometry_types):
@@ -1178,7 +1178,7 @@ class BlUtil:
         @staticmethod
         def bounding_box(depsgraph, objs=None, matrix=None, origins='NON_GEOMETRY', use_bbox=False):
             if use_bbox:
-                geometry_types = {'MESH', 'CURVE', 'SURFACE', 'CURVES', 'FONT', 'META', 'GPENCIL', 'LATTICE', 'ARMATURE'}
+                geometry_types = {'MESH', 'CURVE', 'SURFACE', 'CURVES', 'FONT', 'META', 'GPENCIL', 'GREASEPENCIL', 'LATTICE', 'ARMATURE'}
                 aggregator = RangeAggregator(3)
                 for obj_main, obj_eval, instance_matrix in BlUtil.Depsgraph.evaluated_objects(objs, depsgraph):
                     if (origins == 'NONE') and (obj_eval.type not in geometry_types): continue
@@ -2369,7 +2369,12 @@ class MeshEquivalent:
             extras["mat_add"] = None # prevent adding materials afterwards
     
     _convertible_obj_types = {'MESH', 'CURVE', 'SURFACE', 'CURVES', 'FONT', 'META'}
-    _representable_obj_types = {'GPENCIL':"GreasePencil", 'LATTICE':"Lattice", 'ARMATURE':"Armature"}
+    _representable_obj_types = {
+        'GPENCIL':"GreasePencil",
+        'GREASEPENCIL':"GreasePencil",
+        'LATTICE':"Lattice",
+        'ARMATURE':"Armature",
+    }
     
     @classmethod
     def _get_Object(cls, obj, extras):

@@ -1486,11 +1486,11 @@ BlEnums.object_infos = [
         ('PAINT_VERTEX', 'VERTEX_PAINT', 'PAINT', 'VERTEX', False),
         ('PAINT_TEXTURE', 'TEXTURE_PAINT', 'PAINT', 'TEXTURE', False),
         ('PARTICLE', 'PARTICLE_EDIT', 'EDIT', 'PARTICLE', False),
-    ], {'MESH':True, 'GPENCIL':True, 'POINTCLOUD':True}),
+    ], {'MESH':True, 'GPENCIL':True, 'GREASEPENCIL':(4,3,0), 'POINTCLOUD':True}),
     ObjectTypeInfo('CURVE', "Curve", {'RENDERABLE':True, 'MODIFIERS':True}, [
         ('OBJECT', 'OBJECT', 'OBJECT', None, True),
         ('EDIT_CURVE', 'EDIT', 'EDIT', 'CURVE', True),
-    ], {'MESH':True, 'GPENCIL':True, 'CURVES':True}),
+    ], {'MESH':True, 'GPENCIL':True, 'GREASEPENCIL':(4,3,0), 'CURVES':True}),
     ObjectTypeInfo('SURFACE', "SurfaceCurve", {'RENDERABLE':True, 'MODIFIERS':True}, [
         ('OBJECT', 'OBJECT', 'OBJECT', None, True),
         ('EDIT_SURFACE', 'EDIT', 'EDIT', 'SURFACE', True),
@@ -1525,8 +1525,11 @@ BlEnums.object_infos = [
     ]),
     ObjectTypeInfo('GREASEPENCIL', "GreasePencilv3", {'RENDERABLE':True, 'MODIFIERS':True}, [
         ('OBJECT', 'OBJECT', 'OBJECT', None, True),
-        ('PAINT_GREASE_PENCIL', 'PAINT_GREASEPENCIL', 'DRAW', None, False),
-        ('EDIT_GREASE_PENCIL', 'EDIT_GREASEPENCIL', 'EDIT', 'GREASEPENCIL', False),
+        ('EDIT_GREASE_PENCIL', 'EDIT', 'EDIT', 'GREASEPENCIL', False),
+        ('SCULPT_GREASE_PENCIL', 'SCULPT_GREASE_PENCIL', 'SCULPT', 'GREASEPENCIL', False),
+        ('PAINT_GREASE_PENCIL', 'PAINT_GREASE_PENCIL', 'DRAW', None, False),
+        ('WEIGHT_GREASE_PENCIL', 'WEIGHT_GREASE_PENCIL', 'PAINT', 'WEIGHT', False),
+        ('VERTEX_GREASE_PENCIL', 'VERTEX_GREASE_PENCIL', 'PAINT', 'VERTEX', False),
     ]),
     ObjectTypeInfo('ARMATURE', "Armature", {}, [
         ('OBJECT', 'OBJECT', 'OBJECT', None, True),

@@ -1794,11 +1794,11 @@ class AutoRegKeymapInfo:
         'WEIGHT_GPENCIL': 'Weight Paint',
         'VERTEX_GPENCIL': 'Vertex Paint',
         'SCULPT_CURVES': 'Sculpt Curves',
-        'PAINT_GREASE_PENCIL': 'Image Paint',
+        'PAINT_GREASE_PENCIL': 'Grease Pencil',
         'EDIT_GREASE_PENCIL': 'Grease Pencil',
-        'SCULPT_GREASE_PENCIL': 'Sculpt',
-        'WEIGHT_GREASE_PENCIL': 'Weight Paint',
-        'VERTEX_GREASE_PENCIL': 'Vertex Paint',
+        'SCULPT_GREASE_PENCIL': 'Grease Pencil',
+        'WEIGHT_GREASE_PENCIL': 'Grease Pencil',
+        'VERTEX_GREASE_PENCIL': 'Grease Pencil',
     }
     
     keymaps: {'3D View'} | prop("Keymaps", "To which keymaps this entry should be added", items=mode_names)

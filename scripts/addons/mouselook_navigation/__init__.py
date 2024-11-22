@@ -19,7 +19,7 @@
 bl_info = {
     "name": "Mouselook Navigation",
     "author": "dairin0d, moth3r",
-    "version": (1, 9, 4),
+    "version": (1, 9, 5),
     "blender": (3, 6, 0),
     "location": "View3D > orbit/pan/dolly/zoom/fly/walk",
     "description": "Provides extra 3D view navigation options (ZBrush mode) and customizability",
@@ -1769,6 +1769,7 @@ class AutoRegKeymapInfo:
         'Sculpt Curves',
         'Particle',
         'Grease Pencil',
+        'Paint Curve',
     ]
     
     mode_map = {
@@ -1793,6 +1794,11 @@ class AutoRegKeymapInfo:
         'WEIGHT_GPENCIL': 'Weight Paint',
         'VERTEX_GPENCIL': 'Vertex Paint',
         'SCULPT_CURVES': 'Sculpt Curves',
+        'PAINT_GREASE_PENCIL': 'Image Paint',
+        'EDIT_GREASE_PENCIL': 'Grease Pencil',
+        'SCULPT_GREASE_PENCIL': 'Sculpt',
+        'WEIGHT_GREASE_PENCIL': 'Weight Paint',
+        'VERTEX_GREASE_PENCIL': 'Vertex Paint',
     }
     
     keymaps: {'3D View'} | prop("Keymaps", "To which keymaps this entry should be added", items=mode_names)

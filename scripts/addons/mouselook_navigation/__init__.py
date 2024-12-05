@@ -332,7 +332,10 @@ class MouselookNavigation_InputSettings:
 @addon.Operator(idname="mouselook_navigation.navigate", label="Mouselook navigation", description="Mouselook navigation", options={'GRAB_CURSOR', 'BLOCKING'})
 class MouselookNavigation:
     input_settings_id: 0 | prop("Input Settings ID", "Input Settings ID", min=0)
-    last_location = None    
+    context_modes: "" | prop("Context modes", "Context modes")
+    
+    last_location = None
+    
     def copy_input_settings(self, input_settings, default_input_settings):
         def get_value(name):
             use_default = (input_settings is None) or (name not in input_settings.overrides)
@@ -1043,6 +1046,10 @@ class MouselookNavigation:
         return False
     
     def invoke(self, context, event):
+        if self.context_modes:
+            context_modes = self.context_modes.split("|")
+            if context.mode not in context_modes: return {'PASS_THROUGH'}
+        
         wm = context.window_manager
         userprefs = context.preferences
         region = context.region
@@ -1738,14 +1745,17 @@ def update_keymaps(activate=True):
         insert_after = set(v.strip() for v in ark.insert_after.split(","))
         insert_after.discard("")
         
-        for mode_name in ark.keymaps:
-            kmi_datas = kmi_to_insert.setdefault(mode_name, [])
+        for mode_info_name in ark.keymaps:
+            mode_info = AutoRegKeymapInfo.mode_infos_map[mode_info_name]
+            _, keymap_name, context_modes = mode_info
+            
+            kmi_datas = kmi_to_insert.setdefault(keymap_name, [])
             
             for key_info in InputKeyMonitor.get_keys(ark.value_type):
                 kmi_data = dict(idname=idname, type=key_info.key, value=key_info.event,
                     any=ark.any, shift=ark.shift, ctrl=ark.ctrl, alt=ark.alt,
                     oskey=ark.oskey, key_modifier=ark.key_modifier,
-                    properties=dict(input_settings_id=ark_id))
+                    properties=dict(input_settings_id=ark_id, context_modes=context_modes))
                 kmi_datas.append((insert_after, kmi_data, insert_before))
     
     for keymap_name, kmi_datas in kmi_to_insert.items():
@@ -1757,26 +1767,31 @@ def update_keymaps(activate=True):
 
 @addon.PropertyGroup
 class AutoRegKeymapInfo:
-    mode_names = [
-        '3D View',
-        'Object Mode',
-        'Mesh',
-        'Curve',
-        'Curves',
-        'Armature',
-        'Metaball',
-        'Lattice',
-        'Font',
-        'Pose',
-        'Vertex Paint',
-        'Weight Paint',
-        'Image Paint',
-        'Sculpt',
-        'Sculpt Curves',
-        'Particle',
-        'Grease Pencil',
-        'Paint Curve',
+    mode_infos = [
+        ('3D View', '3D View', ''),
+        ('Object Mode', 'Object Mode', 'OBJECT'),
+        ('Mesh', 'Mesh', 'EDIT_MESH'),
+        ('Curve', 'Curve', 'EDIT_CURVE|EDIT_SURFACE'),
+        ('Curves', 'Curves', 'EDIT_CURVES'),
+        ('Armature', 'Armature', 'EDIT_ARMATURE'),
+        ('Metaball', 'Metaball', 'EDIT_METABALL'),
+        ('Lattice', 'Lattice', 'EDIT_LATTICE'),
+        ('Font', 'Font', 'EDIT_TEXT'),
+        ('Pose', 'Pose', 'POSE'),
+        ('Vertex Paint', 'Vertex Paint', 'PAINT_VERTEX'),
+        ('Weight Paint', 'Weight Paint', 'PAINT_WEIGHT'),
+        ('Image Paint', 'Image Paint', 'PAINT_TEXTURE'),
+        ('Sculpt', 'Sculpt', 'SCULPT'),
+        ('Sculpt Curves', 'Sculpt Curves', 'SCULPT_CURVES'),
+        ('Particle', 'Particle', 'PARTICLE'),
+        ('Paint Curve', 'Paint Curve', ''), # no dedicated mode?
+        ('Grease Pencil: Paint', 'Grease Pencil', 'PAINT_GPENCIL|PAINT_GREASE_PENCIL'),
+        ('Grease Pencil: Edit', 'Grease Pencil', 'EDIT_GPENCIL|EDIT_GREASE_PENCIL'),
+        ('Grease Pencil: Sculpt', 'Grease Pencil', 'SCULPT_GPENCIL|SCULPT_GREASE_PENCIL'),
+        ('Grease Pencil: Weight Paint', 'Grease Pencil', 'WEIGHT_GPENCIL|WEIGHT_GREASE_PENCIL'),
+        ('Grease Pencil: Vertex Paint', 'Grease Pencil', 'VERTEX_GPENCIL|VERTEX_GREASE_PENCIL'),
     ]
+    mode_infos_map = {info[0]: info for info in mode_infos}
     
     mode_map = {
         'EDIT_MESH': 'Mesh',
@@ -1807,7 +1822,8 @@ class AutoRegKeymapInfo:
         'VERTEX_GREASE_PENCIL': 'Grease Pencil',
     }
     
-    keymaps: {'3D View'} | prop("Keymaps", "To which keymaps this entry should be added", items=mode_names)
+    keymaps: {'3D View'} | prop("Keymaps", "To which keymaps this entry should be added",
+        items=[info[0] for info in mode_infos])
     value_type: "" | prop("Type of event", "Type of event")
     any: False | prop("Any", "Any modifier")
     shift: False | prop("Shift", "Shift")

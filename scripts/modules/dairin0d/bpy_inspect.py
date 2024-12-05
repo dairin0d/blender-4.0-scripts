@@ -367,9 +367,10 @@ class BlRna:
         if not obj: return None
         data = {}
         for name, rna_prop in BlRna.properties(obj):
-            if ignore_default and (not obj.is_property_set(rna_prop.identifier)): continue
-            value = getattr(obj, rna_prop.identifier)
-            data[rna_prop.identifier] = BlRna.serialize_value(value, json=json,
+            name = rna_prop.identifier # should always be identical, but just to be sure
+            if ignore_default and (not obj.is_property_set(name)): continue
+            value = getattr(obj, name)
+            data[name] = BlRna.serialize_value(value, json=json,
                 structs=structs, is_struct=rna_prop.is_never_none)
         return data
     

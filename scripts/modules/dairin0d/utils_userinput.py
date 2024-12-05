@@ -342,18 +342,20 @@ class KeyMapUtils:
     @staticmethod
     def serialize(ko):
         if isinstance(ko, bpy.types.KeyMapItem):
-            kmi = ko # also: kmi.map_type ? (seems that it's purely derivative)
+            kmi = ko # Note: kmi.map_type seems to be purely derivative
             return dict(idname=kmi.idname, propvalue=kmi.propvalue,
                 type=kmi.type, value=kmi.value, any=kmi.any,
                 shift=kmi.shift, ctrl=kmi.ctrl, alt=kmi.alt,
                 oskey=kmi.oskey, key_modifier=kmi.key_modifier,
                 active=kmi.active, show_expanded=kmi.show_expanded,
+                repeat=kmi.repeat, direction=kmi.direction,
                 id=kmi.id, properties=BlRna.serialize(kmi.properties, ignore_default=True))
         elif isinstance(ko, bpy.types.KeyMap):
             km = ko
             return dict(name=km.name, space_type=km.space_type, region_type=km.region_type,
                 is_modal=km.is_modal, is_user_modified=km.is_user_modified,
                 show_expanded_children=km.show_expanded_children,
+                show_expanded_items=km.show_expanded_items,
                 keymap_items=[KeyMapUtils.serialize(kmi) for kmi in km.keymap_items])
         elif isinstance(ko, bpy.types.KeyConfig):
             kc = ko
@@ -363,24 +365,33 @@ class KeyMapUtils:
     def deserialize(ko, data, head=False):
         # keymap_items / keymaps / keyconfigs are reported as just "bpy_prop_collection" type
         if isinstance(ko, bpy.types.KeyMap):
+            kwargs = dict(
+                any=data.get("any", False),
+                shift=data.get("shift", 0),
+                ctrl=data.get("ctrl", 0),
+                alt=data.get("alt", 0),
+                oskey=data.get("oskey", 0),
+                key_modifier=data.get("key_modifier", 'NONE'),
+                direction=data.get("direction", 'ANY'),
+                repeat=data.get("repeat", False),
+            )
             if ko.is_modal:
-                kmi = ko.keymap_items.new_modal(data["propvalue"], data["type"], data["value"], any=data.get("any", False),
-                    shift=data.get("shift", False), ctrl=data.get("ctrl", False), alt=data.get("alt", False),
-                    oskey=data.get("oskey", False), key_modifier=data.get("key_modifier", 'NONE'))
+                kmi = ko.keymap_items.new_modal(data["propvalue"], data["type"], data["value"], **kwargs)
             else:
-                kmi = ko.keymap_items.new(data["idname"], data["type"], data["value"], any=data.get("any", False),
-                    shift=data.get("shift", False), ctrl=data.get("ctrl", False), alt=data.get("alt", False),
-                    oskey=data.get("oskey", False), key_modifier=data.get("key_modifier", 'NONE'), head=head)
+                kmi = ko.keymap_items.new(data["idname"], data["type"], data["value"], head=head, **kwargs)
             kmi.active = data.get("active", True)
             kmi.show_expanded = data.get("show_expanded", False)
             BlRna.deserialize(kmi.properties, data.get("properties", {}), suppress_errors=True)
         elif isinstance(ko, bpy.types.KeyConfig):
             # Note: for different modes, different space_type are required!
             # e.g. 'VIEW_3D' for "3D View", and 'EMPTY' for "Sculpt"
+            # Note: there is also the "tool" argument, but Blender does not
+            # seem to provide a way to check if a keymap is for active tool.
             km = ko.keymaps.new(data["name"], space_type=data.get("space_type", 'EMPTY'),
                 region_type=data.get("region_type", 'WINDOW'), modal=data.get("is_modal", False))
             km.is_user_modified = data.get("is_user_modified", False)
             km.show_expanded_children = data.get("show_expanded_children", False)
+            km.show_expanded_items = data.get("show_expanded_items", False)
             for kmi_data in data.get("keymap_items", []):
                 KeyMapUtils.deserialize(km, kmi_data)
         elif isinstance(ko, bpy.types.WindowManager):

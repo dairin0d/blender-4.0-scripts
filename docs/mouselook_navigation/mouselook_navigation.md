@@ -99,6 +99,8 @@ The addon attempts to provide better usability and customization of basic 3D vie
   * **Auto switch** - enables or disables automatic switching between Trackball and Turntable in certain object modes
     * **Auto Trackball modes** dropdown - in which object modes to auto-switch to Trackball
   * **Show** - if enabled, the Trackball toggle in 3D Viewport's header will be shown
+* **System** (options related to the inner workings of the addon)
+  * **Keymap registration delay** - The number of frames (after script reload) to wait before the addon  registers its keymaps. The delay is necessary to avoid crashes, and in the presence of some other addons may need to be more than 1 frame.
 
 ## Keymaps
 

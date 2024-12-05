@@ -19,7 +19,7 @@
 bl_info = {
     "name": "Mouselook Navigation",
     "author": "dairin0d, moth3r",
-    "version": (1, 9, 5),
+    "version": (1, 9, 6),
     "blender": (3, 6, 0),
     "location": "View3D > orbit/pan/dolly/zoom/fly/walk",
     "description": "Provides extra 3D view navigation options (ZBrush mode) and customizability",
@@ -1509,14 +1509,20 @@ def draw_callback_px(self, context):
 
 @addon.timer(persistent=True)
 def background_timer_update():
-    if not addon.runtime.keymaps_initialized:
-        if not KeyMapUtils.exists(MouselookNavigation.bl_idname):
-            # Important: we cannot do this immediately on registration,
-            # or Blender will crash if the user tries to reload scripts
-            # (specifically, the crash occurs when trying to serialize
-            # operator properties of some WindowManager keymaps).
-            update_keymaps(True)
-        addon.runtime.keymaps_initialized = True
+    # Important: we cannot update keymaps immediately on registration,
+    # or Blender will crash if the user tries to reload scripts
+    # (specifically, the crash occurs when trying to serialize
+    # operator properties of some WindowManager keymaps).
+    # We also can't always do it on the next frame after registration,
+    # because some addons (e.g. HardOps) might have some delayed logic
+    # too, which results in some kind of interference (and crashes)
+    # when we attempt to access properties of some KeyMapItem(s).
+    frames_to_wait = settings.keymap_registration_delay
+    if addon.runtime.keymaps_initialized_counter <= frames_to_wait:
+        if addon.runtime.keymaps_initialized_counter == frames_to_wait:
+            if not KeyMapUtils.exists(MouselookNavigation.bl_idname):
+                update_keymaps(True)
+        addon.runtime.keymaps_initialized_counter += 1
     
     if settings.auto_trackball:
         # In a timer, bpy.context.mode seems to always be 'OBJECT',
@@ -2423,6 +2429,12 @@ class ThisAddonPreferences:
     auto_trackball_modes: {} | prop("Auto Trackball modes", "In which object modes to use Trackball",
         items=[(mode_name, BlEnums.get_mode_name(mode_name), "") for mode_name in sorted(BlEnums.context_modes)])
     
+    keymap_registration_delay: 3 | prop("Keymap registration delay",
+        "The number of frames (after script reload) to wait before the addon "+
+        "registers its keymaps. The delay is necessary to avoid crashes, and in "+
+        "the presence of some other addons may need to be more than 1 frame.",
+        min=1)
+    
     def draw(self, context):
         layout = NestedLayout(self.layout)
         
@@ -2517,6 +2529,10 @@ class ThisAddonPreferences:
                     layout.prop(self, "auto_trackball", text="Auto switch", toggle=True)
                     layout.prop_menu_enum(self, "auto_trackball_modes", text="", icon='TRIA_DOWN')
                 layout.prop(self, "show_trackball", text="Show", icon='ORIENTATION_GIMBAL', toggle=True)
+            
+            with layout.row()(alignment='LEFT'):
+                layout.label(text="System:")
+                layout.prop(*settings("keymap_registration_delay"), text="Keymap registration delay")
     
     def draw_autoreg_keymaps(self, context, layout):
         is_showing_default_input_settings = self.is_showing_default_input_settings
@@ -2578,7 +2594,7 @@ def register():
     
     addon.draw_handler_add(bpy.types.SpaceView3D, draw_callback_px, (None, None), 'WINDOW', 'POST_PIXEL')
     
-    addon.runtime.keymaps_initialized = False
+    addon.runtime.keymaps_initialized_counter = 0
 
 def unregister():
     update_keymaps(False)

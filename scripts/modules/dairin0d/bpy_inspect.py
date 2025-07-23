@@ -1294,22 +1294,23 @@ bpy_file_filters = { # in the order defined in ED_path_extension_type()
         ".abc",
     ],
     "image": [ # use_filter_image, FILE_TYPE_IMAGE
-	    ".png", ".tga",  ".bmp", ".jpg", ".jpeg", ".sgi", ".rgb", ".rgba",
-	    ".tif", ".tiff", ".tx", # WITH_TIFF
-	    ".jp2", ".j2c", # WITH_OPENJPEG
-	    ".hdr", # WITH_HDR
-	    ".dds", # WITH_DDS
-	    ".dpx", ".cin", # WITH_CINEON
-	    ".exr", # WITH_OPENEXR
-	    ".psd", ".pdd",  ".psb", # WITH_OPENIMAGEIO
+        ".png", ".tga",  ".bmp", ".jpg", ".jpeg", ".sgi", ".rgb", ".rgba",
+        ".tif", ".tiff", ".tx", # WITH_TIFF
+        ".jp2", ".j2c", # WITH_OPENJPEG
+        ".hdr", # WITH_HDR
+        ".dds", # WITH_DDS
+        ".dpx", ".cin", # WITH_CINEON
+        ".exr", # WITH_OPENEXR
+        ".psd", ".pdd",  ".psb", # WITH_OPENIMAGEIO
+        ".webp", # WITH_WEBP
     ],
     "movie": [ # use_filter_movie, FILE_TYPE_MOVIE
-	    ".avi", ".flc", ".mov", ".movie", ".mp4", ".m4v", ".m2v", ".m2t", ".m2ts", ".mts",
-	    ".ts", ".mv", ".avs", ".wmv", ".ogv", ".ogg", ".r3d", ".dv", ".mpeg", ".mpg",
-	    ".mpg2", ".vob", ".mkv", ".flv", ".divx", ".xvid", ".mxf", ".webm",
+        ".avi", ".flc", ".mov", ".movie", ".mp4", ".m4v", ".m2v", ".m2t", ".m2ts", ".mts",
+        ".ts", ".mv", ".avs", ".wmv", ".ogv", ".ogg", ".r3d", ".dv", ".mpeg", ".mpg",
+        ".mpg2", ".vob", ".mkv", ".flv", ".divx", ".xvid", ".mxf", ".webm",
     ],
     "sound": [ # use_filter_sound, FILE_TYPE_SOUND
-	    ".wav", ".ogg", ".oga", ".mp3", ".mp2", ".ac3", ".aac",
+        ".wav", ".ogg", ".oga", ".mp3", ".mp2", ".ac3", ".aac",
         ".flac", ".wma", ".eac3", ".aif", ".aiff", ".m4a", ".mka",
     ],
     "folder": [ # use_filter_folder, FILE_TYPE_FOLDER

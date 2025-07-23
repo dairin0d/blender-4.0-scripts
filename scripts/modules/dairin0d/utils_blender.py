@@ -32,7 +32,7 @@ from mathutils.geometry import intersect_line_sphere
 from .utils_math import matrix_compose, matrix_inverted_safe, transform_point_normal
 from .bounds import Bounds, RangeAggregator
 from .utils_python import attrs_to_dict
-from .bpy_inspect import BlRna
+from .bpy_inspect import BlRna, IDTypes
 
 # =========================================================================== #
 
